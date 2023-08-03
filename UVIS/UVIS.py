@@ -508,6 +508,7 @@ class UVISLogic(ScriptedLoadableModuleLogic):
         self.colorLUT = None
         self.backgroundModifiedVisualization = None
         self.audioMode = None
+        self.tumorBasedViS = None
         self.numberOfActiveOnMouseMoveAtts = 0
         
         # Link different views
@@ -544,6 +545,7 @@ class UVISLogic(ScriptedLoadableModuleLogic):
         self.markupVis = TexModeVisualization(self.uncertaintyArray)
         self.colorLUT = ColorLUT(self.uncertaintyForeground.uncertaintyVISVolumeNode)
         self.backgroundModifiedVisualization = BackgroundModifiedVisualization(self.uncertaintyArray)
+        self.tumorBasedViS = TumorBasedViS(self.uncertaintyArray)
         self.audioMode = AudioMode(self.uncertaintyArray)
         
     def surgeonCentricModeSelected(self, isChecked):
@@ -1237,4 +1239,109 @@ class ColorLUT():
             
             
 
+class TumorBasedViS(self):
 
+    def __init__(self, uncertainty_array):
+        
+        self.smaller_model = None
+        self._larger_model = None
+        self.surface_model = None
+        
+        self.modelPolyData = None
+        
+        
+        self.volumeRasToIjk = None
+        self.surface_model_threshold = 0.5
+        self.surface_model_smoth = 30
+        self.surface_model_decimate = 0.5
+        self.uncertainty_array = uncertainty_array
+        
+        self.points = None
+        self.point_data = None
+        self.normals = None
+        
+        self.temporary_init()
+        self.calculate_uncertatinty_volumes()
+        
+
+    # todo: change it
+    def temporary_init(self):
+    
+        self._larger_model = getNode('Output4')
+        modelOutputPoly = self._larger_model.GetPolyData()
+
+        self.smaller_model = getNode('Output5')
+        modelOutputPoly_small = smaller_model.GetPolyData()
+
+        self.surface_model = getNode('Output3')
+        self.modelPolyData = self.surface_mode.GetPolyData()
+        
+        volumeNode = getNode('Segmentation-Tumor-label_1')
+        self.volumeRasToIjk = vtk.vtkMatrix4x4()
+        volumeNode.GetRASToIJKMatrix(volumeRasToIjk)
+        
+        self.points = modelPolyData.GetPoints()
+        sekf.point_data = modelPolyData.GetPointData()
+        self.normals = self.point_data.GetNormals()
+
+        self.model_bigger_points = modelOutputPoly.GetPoints()
+        self.model_smaller_points = modelOutputPoly_small.GetPoints()
+
+
+    def calculate_uncertatinty_volumes(self):
+        
+        for i in range(self.points.GetNumberOfPoints()):
+
+            point = [0.0, 0.0, 0.0]
+            points.GetPoint(i, point)
+            
+        # Get ijk of ith point
+            point_Ijk = [0, 0, 0, 1]
+            volumeRasToIjk.MultiplyPoint(np.append(point,1.0), point_Ijk)
+            point_Ijk = [ int(round(c)) for c in point_Ijk[0:3] ]
+
+            uncertainty_value = self.uncertainty_array[point_Ijk[2]][point_Ijk[1]][point_Ijk[0]]/2
+
+            # Get normal of ith point
+            normal = [0.0, 0.0, 0.0]
+            self.normals.GetTuple(i, normal)
+
+            # Get unit_vect
+            unit_vec = self.getUnitVec(normal)
+
+            # new point for bigger volume
+            new_distance = [uncertainty_value * v for v in unit_vec]
+            new_point_bigger = [p + d for p,d in zip(point, new_distance)]
+            self.model_bigger_points.SetPoint(i, new_point_bigger )
+
+            # new point for smaller volume
+            flipped_unit_vec = [-v for v in unit_vec]
+            
+            new_distance_smaller = [uncertainty_value * v for v in flipped_unit_vec]
+            new_point_smaller = [p2 + d2 for p2,d2 in zip(point, new_distance_smaller)]
+            self.model_smaller_points.SetPoint(i, new_point_smaller )
+
+            modelOutputPoly.GetPoints().Modified()
+            modelOutputPoly_small.GetPoints().Modified()
+            slicer.app.processEvents()
+    
+    
+    def getUnitVec(normal):
+
+        normal_magnitude = math.sqrt(sum(n**2 for n in normal))
+        
+        return [n / normal_magnitude for n in normal]
+
+
+    
+        
+        
+        
+        
+        
+        
+    
+    
+        
+    
+    
