@@ -43,7 +43,10 @@ class UVIS(ScriptedLoadableModule):
 class Button(enum.Enum):
     One = 1
     Two = 2
-    
+    TumorBigger = 3
+    Tumor = 4
+    TumorSmaller = 5
+
 
 class UVISWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
 
@@ -127,6 +130,9 @@ class UVISWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         
             self.logic.colorLUT.setSecondColor(colorrgb)
             self.logic.colorLUT.applyColorMap()
+            
+        else:
+            self.logic.tumorBasedViS.set_color(Button, colorrgb)
            
     def apply_threshold(self, value):
 
@@ -304,14 +310,76 @@ class UVISWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         tumorBasedLayout = qt.QGridLayout()
 
 
-        self.tumorBasedTypeofVIS = qt.QComboBox()
-        self.tumorBasedTypeofVIS.setFixedSize(100, 30)
-        self.tumorBasedTypeofVIS.addItem("Dashed Line")
-        self.tumorBasedTypeofVIS.addItem("Line")
-        self.tumorBasedTypeofVIS.addItem("Blurred")
-        self.tumorBasedTypeofVIS.setCurrentIndex(0)
+      #  self.tumorBasedTypeofVIS = qt.QComboBox()
+      #  self.tumorBasedTypeofVIS.setFixedSize(100, 30)
+      #  self.tumorBasedTypeofVIS.addItem("Dashed Line")
+       # self.tumorBasedTypeofVIS.addItem("Line")
+      #  self.tumorBasedTypeofVIS.addItem("Blurred")
+       # self.tumorBasedTypeofVIS.setCurrentIndex(0)
+       
+
+        self.bigger_uncertainty_slider = qt.QSlider(qt.Qt.Horizontal)
+        self.bigger_uncertainty_slider.setFocusPolicy(qt.Qt.StrongFocus)
+        self.bigger_uncertainty_slider.setTickInterval(10)
+        self.bigger_uncertainty_slider.setFixedSize(200, 30)
+        self.bigger_uncertainty_slider_label = qt.QLabel("Bigger Volume: ")
+        self.opacity_label = qt.QLabel("Opacity: ")
+        #self.sigma_slider.setValue(self.currentBlurinesssigma)
+
+        self.color_button_tumorbased = qt.QPushButton("Color")
+        self.color_button_tumorbased.setFixedSize(50, 30)
+        self.color_button_tumorbased.clicked.connect(lambda:self.open_color_picker(Button.TumorBigger))
+       
+
         
-        tumorBasedLayout.addWidget(self.tumorBasedTypeofVIS, 0, 0)
+        tumorBasedLayout.addWidget(self.bigger_uncertainty_slider_label, 0, 0)
+        tumorBasedLayout.addWidget(self.opacity_label , 1, 0, qt.Qt.AlignRight)
+        tumorBasedLayout.addWidget(self.bigger_uncertainty_slider, 1, 1, qt.Qt.AlignLeft)
+        tumorBasedLayout.addWidget(self.color_button_tumorbased, 1, 2,  qt.Qt.AlignRight)
+                
+        
+        self.tumor_based_uncertainty_slider = qt.QSlider(qt.Qt.Horizontal)
+        self.tumor_based_uncertainty_slider.setFocusPolicy(qt.Qt.StrongFocus)
+        self.tumor_based_uncertainty_slider.setTickInterval(10)
+        self.tumor_based_uncertainty_slider.setFixedSize(200, 30)
+        self.tumor_based_uncertainty_slider_label = qt.QLabel("Tumor: ")
+        self.opacity_label_tumor = qt.QLabel("Opacity: ")
+
+        #self.sigma_slider.setValue(self.currentBlurinesssigma)
+
+        self.color_button_tumorbased_tumor = qt.QPushButton("Color")
+        self.color_button_tumorbased_tumor.setFixedSize(50, 30)
+        self.color_button_tumorbased_tumor.clicked.connect(lambda:self.open_color_picker(Button.Tumor))
+       
+        
+        tumorBasedLayout.addWidget(self.tumor_based_uncertainty_slider_label, 2, 0)
+        tumorBasedLayout.addWidget(self.opacity_label_tumor , 3, 0, qt.Qt.AlignRight)
+        tumorBasedLayout.addWidget(self.tumor_based_uncertainty_slider, 3, 1, qt.Qt.AlignLeft)
+        tumorBasedLayout.addWidget(self.color_button_tumorbased_tumor, 3, 2,  qt.Qt.AlignRight)
+        
+        
+        
+        self.smaller_uncertainty_slider = qt.QSlider(qt.Qt.Horizontal)
+        self.smaller_uncertainty_slider.setFocusPolicy(qt.Qt.StrongFocus)
+        self.smaller_uncertainty_slider.setTickInterval(10)
+        self.smaller_uncertainty_slider.setFixedSize(200, 30)
+        self.smaller_uncertainty_slider_label = qt.QLabel("Smaller Volume: ")
+        self.opacity_label_smaller = qt.QLabel("Opacity: ")
+
+        #self.sigma_slider.setValue(self.currentBlurinesssigma)
+
+        self.color_button_tumorbased_smaller = qt.QPushButton("Color")
+        self.color_button_tumorbased_smaller.setFixedSize(50, 30)
+        self.color_button_tumorbased_smaller.clicked.connect(lambda:self.open_color_picker(Button.TumorSmaller))
+       
+
+        
+        tumorBasedLayout.addWidget(self.smaller_uncertainty_slider_label, 4, 0)
+        tumorBasedLayout.addWidget(self.opacity_label_smaller , 5, 0, qt.Qt.AlignRight)
+        tumorBasedLayout.addWidget(self.smaller_uncertainty_slider, 5, 1, qt.Qt.AlignLeft)
+        tumorBasedLayout.addWidget(self.color_button_tumorbased_smaller, 5, 2,  qt.Qt.AlignRight)
+
+
 
         tumorBasedCollapsibleLayout.addRow(tumorBasedLayout)
 
@@ -1239,16 +1307,19 @@ class ColorLUT():
             
             
 
-class TumorBasedViS(self):
+class TumorBasedViS():
 
     def __init__(self, uncertainty_array):
         
         self.smaller_model = None
-        self._larger_model = None
+        self.larger_model = None
         self.surface_model = None
         
         self.modelPolyData = None
         
+        self.smaller_mode_display_node = None
+        self.larger_model_display_node = None
+        self.surface_mode_display_node = None
         
         self.volumeRasToIjk = None
         self.surface_model_threshold = 0.5
@@ -1267,25 +1338,29 @@ class TumorBasedViS(self):
     # todo: change it
     def temporary_init(self):
     
-        self._larger_model = getNode('Output4')
-        modelOutputPoly = self._larger_model.GetPolyData()
+        self.larger_model = slicer.util.getNode('Output4')
+        self.larger_mode_display_node = self.larger_model.GetDisplayNode()
+        self.modelOutputPoly = self.larger_model.GetPolyData()
 
-        self.smaller_model = getNode('Output5')
-        modelOutputPoly_small = smaller_model.GetPolyData()
-
-        self.surface_model = getNode('Output3')
-        self.modelPolyData = self.surface_mode.GetPolyData()
+        self.smaller_model = slicer.util.getNode('Output5')
+        self.smaller_mode_display_node = self.smaller_model.GetDisplayNode()
+        self.modelOutputPoly_small = self.smaller_model.GetPolyData()
         
-        volumeNode = getNode('Segmentation-Tumor-label_1')
+        self.surface_model = slicer.util.getNode('Output3')
+        self.surface_mode_display_node = self.surface_model.GetDisplayNode()
+
+        self.modelPolyData = self.surface_model.GetPolyData()
+        
+        volumeNode = slicer.util.getNode('Segmentation-Tumor-label_1')
         self.volumeRasToIjk = vtk.vtkMatrix4x4()
-        volumeNode.GetRASToIJKMatrix(volumeRasToIjk)
+        volumeNode.GetRASToIJKMatrix(self.volumeRasToIjk)
         
-        self.points = modelPolyData.GetPoints()
-        sekf.point_data = modelPolyData.GetPointData()
+        self.points = self.modelPolyData.GetPoints()
+        self.point_data = self.modelPolyData.GetPointData()
         self.normals = self.point_data.GetNormals()
 
-        self.model_bigger_points = modelOutputPoly.GetPoints()
-        self.model_smaller_points = modelOutputPoly_small.GetPoints()
+        self.model_bigger_points = self.modelOutputPoly.GetPoints()
+        self.model_smaller_points = self.modelOutputPoly_small.GetPoints()
 
 
     def calculate_uncertatinty_volumes(self):
@@ -1293,11 +1368,11 @@ class TumorBasedViS(self):
         for i in range(self.points.GetNumberOfPoints()):
 
             point = [0.0, 0.0, 0.0]
-            points.GetPoint(i, point)
+            self.points.GetPoint(i, point)
             
         # Get ijk of ith point
             point_Ijk = [0, 0, 0, 1]
-            volumeRasToIjk.MultiplyPoint(np.append(point,1.0), point_Ijk)
+            self.volumeRasToIjk.MultiplyPoint(np.append(point,1.0), point_Ijk)
             point_Ijk = [ int(round(c)) for c in point_Ijk[0:3] ]
 
             uncertainty_value = self.uncertainty_array[point_Ijk[2]][point_Ijk[1]][point_Ijk[0]]/2
@@ -1321,12 +1396,35 @@ class TumorBasedViS(self):
             new_point_smaller = [p2 + d2 for p2,d2 in zip(point, new_distance_smaller)]
             self.model_smaller_points.SetPoint(i, new_point_smaller )
 
-            modelOutputPoly.GetPoints().Modified()
-            modelOutputPoly_small.GetPoints().Modified()
+            self.modelOutputPoly.GetPoints().Modified()
+            self.modelOutputPoly_small.GetPoints().Modified()
             slicer.app.processEvents()
     
     
-    def getUnitVec(normal):
+  #  def change_opacity(self):
+        
+    def set_color(self, Button, color):
+    
+        color = tuple(c/255 for c in color)
+        
+        if Button == Button.TumorBigger:
+            
+            self.larger_mode_display_node.SetColor(color)
+
+        elif Button == Button.Tumor:
+            
+            self.surface_mode_display_node.SetColor(color)
+            
+        elif Button == Button.TumorSmaller:
+        
+            self.smaller_mode_display_node.SetColor(color)
+
+        
+  #  def set_line_width(self):
+        
+        
+    
+    def getUnitVec(self, normal):
 
         normal_magnitude = math.sqrt(sum(n**2 for n in normal))
         
