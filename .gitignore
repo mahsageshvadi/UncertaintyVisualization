@@ -1,0 +1,7 @@
+test/
+UVIS/Testing
+__pycache__/
+UVIS/__pycache__/
+*.log
+~                                                                                                                                               
+~         
