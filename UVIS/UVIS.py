@@ -130,7 +130,6 @@ class UVISWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         
             self.logic.colorLUT.setSecondColor(colorrgb)
             self.logic.colorLUT.applyColorMap()
-            
         else:
             self.logic.tumorBasedViS.set_color(Button, colorrgb)
            
@@ -139,7 +138,10 @@ class UVISWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
             self.logic.uncertaintyForeground.apply_threshold(value)
             self.x_slider_label.setText(str(value) + " mm")
 
-  
+    def change_opacity(self, Button, opacity):
+    
+            self.logic.tumorBasedViS.change_opacity(Button, opacity)
+    
     def sigma_changed(self, sigma):
         
             self.currentBlurinesssigma = sigma
@@ -206,6 +208,12 @@ class UVISWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         self.logic.colorLUT.resetLUTTogrey()
         self.x_slider.setValue(self.uncertaintyArray.min())
         
+    
+    def on_spinbox_value_changed(self, Button, value):
+                
+        self.logic.tumorBasedViS.set_line_width(Button, value)
+    
+    
 
 
 
@@ -325,17 +333,28 @@ class UVISWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         self.bigger_uncertainty_slider_label = qt.QLabel("Bigger Volume: ")
         self.opacity_label = qt.QLabel("Opacity: ")
         #self.sigma_slider.setValue(self.currentBlurinesssigma)
+        self.bigger_uncertainty_slider.valueChanged.connect(lambda value: self.change_opacity(Button.TumorBigger, value))
 
         self.color_button_tumorbased = qt.QPushButton("Color")
         self.color_button_tumorbased.setFixedSize(50, 30)
         self.color_button_tumorbased.clicked.connect(lambda:self.open_color_picker(Button.TumorBigger))
        
+       
+        self.spin_box_label_bigger= qt.QLabel("Line Thickness: ")
+
+        self.spin_box_bigger = qt.QSpinBox()
+        self.spin_box_bigger.setRange(0, 20)
+        self.spin_box_bigger.setValue(2)
+        self.spin_box_bigger.setSingleStep(1)
+        self.spin_box_bigger.valueChanged.connect(lambda value: self.on_spinbox_value_changed(Button.TumorBigger, value))
 
         
         tumorBasedLayout.addWidget(self.bigger_uncertainty_slider_label, 0, 0)
         tumorBasedLayout.addWidget(self.opacity_label , 1, 0, qt.Qt.AlignRight)
         tumorBasedLayout.addWidget(self.bigger_uncertainty_slider, 1, 1, qt.Qt.AlignLeft)
-        tumorBasedLayout.addWidget(self.color_button_tumorbased, 1, 2,  qt.Qt.AlignRight)
+        tumorBasedLayout.addWidget(self.color_button_tumorbased, 1, 2)
+        tumorBasedLayout.addWidget(self.spin_box_label_bigger, 1, 3,qt.Qt.AlignRight)
+        tumorBasedLayout.addWidget(self.spin_box_bigger, 1, 4,  qt.Qt.AlignRight)
                 
         
         self.tumor_based_uncertainty_slider = qt.QSlider(qt.Qt.Horizontal)
@@ -344,6 +363,7 @@ class UVISWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         self.tumor_based_uncertainty_slider.setFixedSize(200, 30)
         self.tumor_based_uncertainty_slider_label = qt.QLabel("Tumor: ")
         self.opacity_label_tumor = qt.QLabel("Opacity: ")
+        self.tumor_based_uncertainty_slider.valueChanged.connect(lambda value: self.change_opacity(Button.Tumor, value))
 
         #self.sigma_slider.setValue(self.currentBlurinesssigma)
 
@@ -351,12 +371,21 @@ class UVISWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         self.color_button_tumorbased_tumor.setFixedSize(50, 30)
         self.color_button_tumorbased_tumor.clicked.connect(lambda:self.open_color_picker(Button.Tumor))
        
-        
+        self.spin_box_label= qt.QLabel("Line Thickness: ")
+
+        self.spin_box_tumor = qt.QSpinBox()
+        self.spin_box_tumor.setRange(0, 20)
+        self.spin_box_tumor.setValue(2)
+        self.spin_box_tumor.setSingleStep(1)
+        self.spin_box_tumor.valueChanged.connect(lambda value: self.on_spinbox_value_changed(Button.Tumor, value))
+
         tumorBasedLayout.addWidget(self.tumor_based_uncertainty_slider_label, 2, 0)
         tumorBasedLayout.addWidget(self.opacity_label_tumor , 3, 0, qt.Qt.AlignRight)
         tumorBasedLayout.addWidget(self.tumor_based_uncertainty_slider, 3, 1, qt.Qt.AlignLeft)
         tumorBasedLayout.addWidget(self.color_button_tumorbased_tumor, 3, 2,  qt.Qt.AlignRight)
-        
+        tumorBasedLayout.addWidget(self.spin_box_label, 3, 3,qt.Qt.AlignRight)
+        tumorBasedLayout.addWidget(self.spin_box_tumor, 3, 4,  qt.Qt.AlignRight)
+                
         
         
         self.smaller_uncertainty_slider = qt.QSlider(qt.Qt.Horizontal)
@@ -365,20 +394,30 @@ class UVISWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         self.smaller_uncertainty_slider.setFixedSize(200, 30)
         self.smaller_uncertainty_slider_label = qt.QLabel("Smaller Volume: ")
         self.opacity_label_smaller = qt.QLabel("Opacity: ")
+        self.smaller_uncertainty_slider.valueChanged.connect(lambda value: self.change_opacity(Button.TumorSmaller, value))
 
         #self.sigma_slider.setValue(self.currentBlurinesssigma)
 
         self.color_button_tumorbased_smaller = qt.QPushButton("Color")
         self.color_button_tumorbased_smaller.setFixedSize(50, 30)
         self.color_button_tumorbased_smaller.clicked.connect(lambda:self.open_color_picker(Button.TumorSmaller))
-       
+
+        self.spin_box_label_smaller= qt.QLabel("Line Thickness: ")
+
+        self.spin_box_smaller = qt.QSpinBox()
+        self.spin_box_smaller.setRange(0, 20)
+        self.spin_box_smaller.setValue(2)
+        self.spin_box_smaller.setSingleStep(1)
+        self.spin_box_smaller.valueChanged.connect(lambda value: self.on_spinbox_value_changed(Button.TumorSmaller, value))
 
         
         tumorBasedLayout.addWidget(self.smaller_uncertainty_slider_label, 4, 0)
         tumorBasedLayout.addWidget(self.opacity_label_smaller , 5, 0, qt.Qt.AlignRight)
         tumorBasedLayout.addWidget(self.smaller_uncertainty_slider, 5, 1, qt.Qt.AlignLeft)
         tumorBasedLayout.addWidget(self.color_button_tumorbased_smaller, 5, 2,  qt.Qt.AlignRight)
-
+        tumorBasedLayout.addWidget(self.spin_box_label_smaller, 5, 3,qt.Qt.AlignRight)
+        tumorBasedLayout.addWidget(self.spin_box_smaller, 5, 4,  qt.Qt.AlignRight)
+                
 
 
         tumorBasedCollapsibleLayout.addRow(tumorBasedLayout)
@@ -1401,7 +1440,23 @@ class TumorBasedViS():
             slicer.app.processEvents()
     
     
-  #  def change_opacity(self):
+    def change_opacity(self, Button, opacity):
+    
+        if Button == Button.TumorBigger:
+            
+            self.larger_mode_display_node.SetOpacity(opacity/100)
+            self.larger_mode_display_node.SetSliceIntersectionOpacity(opacity/100)
+
+        elif Button == Button.Tumor:
+            
+            self.surface_mode_display_node.SetOpacity(opacity/100)
+            self.surface_mode_display_node.SetSliceIntersectionOpacity(opacity/100)
+            
+        elif Button == Button.TumorSmaller:
+        
+            self.smaller_mode_display_node.SetOpacity(opacity/100)
+            self.smaller_mode_display_node.SetSliceIntersectionOpacity(opacity/100)
+
         
     def set_color(self, Button, color):
     
@@ -1420,7 +1475,23 @@ class TumorBasedViS():
             self.smaller_mode_display_node.SetColor(color)
 
         
-  #  def set_line_width(self):
+    def set_line_width(self, Button, width):
+    
+        print("width")
+        print(width)
+        if Button == Button.TumorBigger:
+            
+            self.larger_mode_display_node.SetSliceIntersectionThickness(width)
+
+        elif Button == Button.Tumor:
+            
+            self.surface_mode_display_node.SetSliceIntersectionThickness(width)
+            
+        elif Button == Button.TumorSmaller:
+        
+            self.smaller_mode_display_node.SetSliceIntersectionThickness(width)
+
+        
         
         
     
