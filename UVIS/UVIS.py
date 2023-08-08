@@ -104,11 +104,8 @@ class UVISWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
 
     def binaryColorMap(self, is_checked):
     
-        if is_checked:
-            self.logic.colorLUT.setisBinary(True)
-        else:
-            self.logic.colorLUT.setisBinary(False)
-
+ 
+        self.logic.colorLUT.setisBinary(is_checked)
         self.logic.colorLUT.applyColorMap()
 
 
@@ -136,7 +133,7 @@ class UVISWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
     def apply_threshold(self, value):
 
             self.logic.uncertaintyForeground.apply_threshold(value)
-            self.x_slider_label.setText(str(value) + " mm")
+            self.x_slider_label.setText(f"{value} mm")
 
     def change_opacity(self, Button, opacity):
     
@@ -151,7 +148,7 @@ class UVISWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
             
             self.currentBlurinessBorderValue = bluriness_border
             self.logic.blurinessNumberOfSectionChanged( index =self.currentBlurinessIndex,blurinessIntencity= self.currentBlurinesssigma/300, notBlureddUncertaintyIncrease=bluriness_border/100)
-            self.slider_value_label.setText(str(bluriness_border/100) + " mm")
+            self.slider_value_label.setText(f"{bluriness_border/100} mm")
 
     def audio_threshold_changed(self, new_threshold):
     
