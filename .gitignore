@@ -1,3 +1,4 @@
+*.ipynb
 test/
 UVIS/Testing
 __pycache__/
