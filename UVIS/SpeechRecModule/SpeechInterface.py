@@ -1,6 +1,18 @@
 import speech_recognition as sr
 import time
 
+from gtts import gTTS
+from playsound import playsound
+
+
+
+def initateSampleAudios():
+
+	for i in range(11):
+
+		text = "{} mm ".format(i)
+		tts = gTTS(text)
+		tts.save("{}_mm.mp3".format(i))
 
 
 
@@ -49,4 +61,6 @@ def takeCommandInBackground():
 	while True: 
 		time.sleep(0.1) 
 
-takeCommand()
+
+
+initateSampleAudios()
