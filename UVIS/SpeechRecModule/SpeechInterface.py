@@ -10,9 +10,13 @@ def initateSampleAudios():
 
 	for i in range(11):
 
-		text = "{} mm ".format(i)
-		tts = gTTS(text)
+		text_simple = "{} mm ".format(i)
+		text_with_uncertainty = "{} mm uncertainty".format(i)
+		tts = gTTS(text_simple)
+		tts_with_uncertainty = gTTS(text_with_uncertainty)
 		tts.save("{}_mm.mp3".format(i))
+		tts_with_uncertainty.save("{}_mm_with_uncertainty.mp3".format(i))
+
 
 
 def say_uncertainty_value_every_x_second(time_intervals):
