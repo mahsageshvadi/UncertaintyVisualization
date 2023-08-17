@@ -5,6 +5,7 @@ from gtts import gTTS
 from playsound import playsound
 
 say_uncertainty_value = True
+say_uncertainty_if_gets_bigger = True
 
 def initateSampleAudios():
 
@@ -25,6 +26,15 @@ def say_uncertainty_value_every_x_second(time_intervals):
         current_uncrtainty_value = random.randint(0, 10)
         playsound("{}_mm.mp3".format(current_uncrtainty_value))
         time.sleep(5)
+
+
+def say_uncertainty_when_gets_bigger_by_one(current_uncertainty):
+    pervious_uncetainty_value = current_uncertainty
+    while say_uncertainty_if_gets_bigger:
+        current_uncrtainty_value = random.randint(4, 6)
+        if current_uncrtainty_value - pervious_uncetainty_value != 0:
+            playsound("{}_mm_with_uncertainty.mp3".format(current_uncrtainty_value))
+            time.sleep(3)
 
 
 def takeCommand():
