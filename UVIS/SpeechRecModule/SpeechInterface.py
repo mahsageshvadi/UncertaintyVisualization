@@ -4,7 +4,7 @@ import time
 from gtts import gTTS
 from playsound import playsound
 
-
+say_uncertainty_value = True
 
 def initateSampleAudios():
 
@@ -17,7 +17,7 @@ def initateSampleAudios():
 
 def say_uncertainty_value_every_x_second(time_intervals):
     
-    if say_uncertainty_value:
+    while say_uncertainty_value:
         current_uncrtainty_value = random.randint(0, 10)
         playsound("{}_mm.mp3".format(current_uncrtainty_value))
         time.sleep(5)
