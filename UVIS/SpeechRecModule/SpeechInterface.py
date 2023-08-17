@@ -15,6 +15,13 @@ def initateSampleAudios():
 		tts.save("{}_mm.mp3".format(i))
 
 
+def say_uncertainty_value_every_x_second(time_intervals):
+    
+    if say_uncertainty_value:
+        current_uncrtainty_value = random.randint(0, 10)
+        playsound("{}_mm.mp3".format(current_uncrtainty_value))
+        time.sleep(5)
+
 
 def takeCommand():
     r=sr.Recognizer()
