@@ -82,6 +82,20 @@ def takeCommandInBackground():
 	while True: 
 		time.sleep(0.1) 
 
+def getPromptBasedOnCommand(command):
+
+    prompt = f"""I have a category of 6 questions:
+    Category 1: What is the uncertainty value?
+    Category 2: Tell me the uncertainty value every x seconds
+    Category 3: Tell me the value if it gets bigger
+    Category 4: Tell me the value if it gets smaller
+    Category 5: Tell me the value if it gets changed
+    Category 6: Tell me where I am relative to the tumor surface
+
+    The question below belongs to which category:
+    {command}
+    """
+
 
 
 initateSampleAudios()
