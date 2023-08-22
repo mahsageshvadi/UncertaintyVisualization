@@ -49,28 +49,32 @@ def runCategory(category):
 
 def takeCommand():
     r=sr.Recognizer()
-    microphone = sr.Microphone()
+    microphone = sr.Microphone()          
+    print("Listening...")
+
     with sr.Microphone() as source:
         r.adjust_for_ambient_noise(source)
 
-        command = 0
+        statement = 0
         while True:
 
 
-            print("Listening...")
-            audio=r.listen(source, timeout = 3)
+            audio=r.listen(source)
 
             try:
-                command=r.recognize_google(audio,language='en-in')
-                print(f"user said:{command}\n")
+                statement=r.recognize_google(audio,language='en-in')
+                print(f"user said:{statement}\n")
+                category = getCategory(statement)
+                runCategory(category)
+
+                
 
             except Exception as e:
-            		pass
-
-            if command==0:
+                print("None")
+            if statement==0:
                     continue
-        return command
 
+        return statement
 
 def callbackWhileListening(recognizer, audio):
     try:
@@ -115,4 +119,3 @@ def getCategory():
     return category
 
 
-initateSampleAudios()
