@@ -9,6 +9,7 @@ say_uncertainty_if_gets_bigger = True
 
 def initateSampleAudios():
 
+    #todo: change 11
 	for i in range(11):
 
 		text_simple = "{} mm ".format(i)
@@ -17,8 +18,6 @@ def initateSampleAudios():
 		tts_with_uncertainty = gTTS(text_with_uncertainty)
 		tts.save("{}_mm.mp3".format(i))
 		tts_with_uncertainty.save("{}_mm_with_uncertainty.mp3".format(i))
-
-
 
 def say_uncertainty_value_every_x_second(time_intervals):
     
@@ -36,7 +35,7 @@ def say_uncertainty_when_gets_bigger_by_one(current_uncertainty):
             playsound("{}_mm_with_uncertainty.mp3".format(current_uncrtainty_value))
             time.sleep(3)
 
-def runCategory(category):
+def runCommandBasedOnCategory(category):
 
     if category == "1": 
         uncertainty_value_now()
@@ -47,56 +46,7 @@ def runCategory(category):
         say_uncertainty_when_gets_bigger_by_one(1)
     
 
-def takeCommand():
-    r=sr.Recognizer()
-    microphone = sr.Microphone()          
-    print("Listening...")
-
-    with sr.Microphone() as source:
-        r.adjust_for_ambient_noise(source)
-
-        statement = 0
-        while True:
-
-
-            audio=r.listen(source)
-
-            try:
-                statement=r.recognize_google(audio,language='en-in')
-                print(f"user said:{statement}\n")
-                category = getCategory(statement)
-                runCategory(category)
-
-                
-
-            except Exception as e:
-                print("None")
-            if statement==0:
-                    continue
-
-        return statement
-
-def callbackWhileListening(recognizer, audio):
-    try:
-
-        print( recognizer.recognize_google(audio))
-    except sr.UnknownValueError:
-        print("Couldn't understand the audio")
-    except sr.RequestError as e:
-            pass
-        
-def takeCommandInBackground():
-	r = sr.Recognizer()
-	m = sr.Microphone()
-	with m as source:
-		r.adjust_for_ambient_noise(source)  
-	stop_listening = r.listen_in_background(m, callbackWhileListening)
-	for _ in range(50): time.sleep(0.1)
-	stop_listening(wait_for_stop=False)
-	while True: 
-		time.sleep(0.1) 
-
-def getPromptBasedOnCommand(statement):
+def getPromptBasedOnListenedCommand(listenedCommand):
 
     prompt = f"""I have a category of 6 questions:
     Category 1: What is the uncertainty value?
@@ -107,10 +57,13 @@ def getPromptBasedOnCommand(statement):
     Category 6: Tell me where I am relative to the tumor surface
 
     The question below belongs to which category:
-    {command}
+    {listenedCommand}
     """
-def getCategory():
-    prompt = getPromptBasedOnCommand(statement)
+    return prompt
+
+def getListenedCommandCategory(listenedCommand):
+
+    prompt = getPromptBasedOnListenedCommand(listenedCommand)
     
     gptOutput = openai.ChatCompletion.create(
     model="gpt-3.5-turbo", 
@@ -118,4 +71,57 @@ def getCategory():
     category = detectCategory(gptOutput)
     return category
 
+def callbackWhileListening(recognizer, audio):
+    try:
 
+        print( recognizer.recognize_google(audio))
+    except sr.UnknownValueError:
+        print("Couldn't understand the audio")
+    except sr.RequestError as e:
+            pass
+        
+def listenForCommandsInBackground():
+    r = sr.Recognizer()
+    m = sr.Microphone()
+    with m as source:
+        r.adjust_for_ambient_noise(source)  
+    stop_listening = r.listen_in_background(m, callbackWhileListening)
+    for _ in range(50): time.sleep(0.1)
+    stop_listening(wait_for_stop=False)
+    while True: 
+        time.sleep(0.1) 
+
+
+def listenForCommands():
+    r=sr.Recognizer()
+    microphone = sr.Microphone()          
+    print("Listening...")
+
+    with sr.Microphone() as source:
+        r.adjust_for_ambient_noise(source)
+
+        listenedCommand = 0
+        while True:
+
+
+            listenedCommandAudio=r.listen(source)
+
+            try:
+                listenedCommand=r.recognize_google(listenedCommandAudio,language='en-in')
+                print(f"user said:{listenedCommand}\n")
+                category = getListenedCommandCategory(listenedCommand)
+                runCommandBasedOnCategory(category)
+
+                
+
+            except Exception as e:
+                print("None")
+            if listenedCommand==0:
+                    continue
+
+        return listenedCommand
+
+if __name__ == "__main__":
+
+
+    listenForCommands()
