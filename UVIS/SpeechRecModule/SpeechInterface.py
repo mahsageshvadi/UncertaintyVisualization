@@ -92,7 +92,7 @@ def takeCommandInBackground():
 	while True: 
 		time.sleep(0.1) 
 
-def getPromptBasedOnCommand(command):
+def getPromptBasedOnCommand(statement):
 
     prompt = f"""I have a category of 6 questions:
     Category 1: What is the uncertainty value?
@@ -105,7 +105,14 @@ def getPromptBasedOnCommand(command):
     The question below belongs to which category:
     {command}
     """
-
+def getCategory():
+    prompt = getPromptBasedOnCommand(statement)
+    
+    gptOutput = openai.ChatCompletion.create(
+    model="gpt-3.5-turbo", 
+    messages=[{"role": "user", "content": prompt}])['choices'][0]['message']['content']
+    category = detectCategory(gptOutput)
+    return category
 
 
 initateSampleAudios()
