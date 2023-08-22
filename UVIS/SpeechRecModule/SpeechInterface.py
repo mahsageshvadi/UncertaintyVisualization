@@ -36,6 +36,16 @@ def say_uncertainty_when_gets_bigger_by_one(current_uncertainty):
             playsound("{}_mm_with_uncertainty.mp3".format(current_uncrtainty_value))
             time.sleep(3)
 
+def runCategory(category):
+
+    if category == "1": 
+        uncertainty_value_now()
+    elif category == "2":
+        say_uncertainty_value_every_x_second(5)
+        
+    elif category == "3":
+        say_uncertainty_when_gets_bigger_by_one(1)
+    
 
 def takeCommand():
     r=sr.Recognizer()
