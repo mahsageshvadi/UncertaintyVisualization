@@ -1048,6 +1048,7 @@ class UncertaintyForegroundVisualization():
             self.displayNode.SetApplyThreshold(1)
             self.displayNode.SetLowerThreshold(threshold)
 
+# Different filters
 class BackgroundModifiedVisualization():
 
     def __init__(self, uncertaintyArray):
@@ -1067,6 +1068,7 @@ class BackgroundModifiedVisualization():
         self.uncertaintyArray = uncertaintyArray
         
         self.initializeBluringVariables()
+        self.nonBinaryModeInitiation()
 
     def initializeBluringVariables(self):
         
@@ -1106,6 +1108,33 @@ class BackgroundModifiedVisualization():
                     adjusted_volume = np.clip(volume * factor, 0, 255).astype(np.uint8)
 
             return adjusted_volume
+    
+    def nonBinaryModeInitiation(self):
+        
+        self.backgroundToBemodifiedCopy = self.backgroundToBemodified.copy()
+        self.sigma_values = self.uncertaintyArray.copy()
+        self.sigma_values = np.round(self.sigma_values, 1)
+        max_sigma = np.max(self.sigma_values).astype(int)
+        
+        blurred_volume_list = []
+        blurred_volume_index_list = []
+
+        for i in np.unique(self.sigma_values):
+            blurred_volume_list.append(gaussian_filter(self.backgroundToBemodifiedCopy, sigma=i -3))
+            blurred_volume_index_list.append(i)
+    
+        depth, height, width = self.backgroundToBemodifiedCopy.shape
+        self.nonBinaryblurredVolume = np.zeros(shape=(depth, height, width))
+        nonBinaryblurredVolumeNode = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLScalarVolumeNode")
+        
+        for k in range(depth):
+            for j in range(height):
+                for i in range(width):
+                    sigma_value = self.sigma_values[k, j, i]
+                    index = blurred_volume_index_list.index(sigma_value)
+                    self.nonBinaryblurredVolume[k, j, i] = blurred_volume_list[index][k, j, i]
+
+
         
     def visualizeBluredBackground(self, sigmas = None, uncertaintyBorders =None, numberOfSections = None):
         
@@ -1147,6 +1176,9 @@ class BackgroundModifiedVisualization():
         
             if i != 0 :
                 self.bluredFinalVolumeArray += blured_masked_volume
+        # Excluding the infinity mode
+        if self.numberOfSections == 12:
+            self.bluredFinalVolumeArray = self.nonBinaryblurredVolume
 
         slicer.util.updateVolumeFromArray(self.BackgroundModifedVisualization, self.bluredFinalVolumeArray)
 
