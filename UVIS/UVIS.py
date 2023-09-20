@@ -8,12 +8,14 @@ import enum
 import SimpleITK as sitk
 import math
 
+from pygame import mixer
 from scipy.ndimage import gaussian_filter
 from slicer.ScriptedLoadableModule import *
 from slicer.util import VTKObservationMixin
-from playsound import playsound
 from vtk.util import numpy_support
 
+import objc
+from AppKit import NSCursor, NSView
 # UVIS
 #
 
@@ -226,15 +228,11 @@ class UVISWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
 
         directoryButton = qt.QPushButton("Select Image Volumes")
         self.layout.addWidget(directoryButton)
-       # directoryButton.connect('clicked()', self.onDirectoryButtonClicked)
-      #  directoryButton.styleSheet = "font-size: 16pt; color: orange; margin: 10px; background-color: rgb(10, 20, 33); border-width: 2px; border-style: outset; border-radius: 10px; border-style: inset"
 
         
         directoryButton = qt.QPushButton("Select Uncertainty Volume")
         self.layout.addWidget(directoryButton)
         directoryButton.connect('clicked()', self.onUncertaintyVolumeSelected)
-       # directoryButton.styleSheet = "font-size: 16pt; color: orange; margin: 10px; background-color: rgb(10, 20, 33); border-width: 2px; border-style: outset; border-radius: 10px; border-style: inset"
-
 
         self.layout.addStretch(1)
 
@@ -242,7 +240,6 @@ class UVISWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         
         blurinessColapsibbleButton = ctk.ctkCollapsibleButton()
         blurinessColapsibbleButton.text = "Volume Filtering"
-       # blurinessColapsibbleButton.styleSheet = "color: rgb(136, 152, 186);"
 
         self.layout.addWidget(blurinessColapsibbleButton)
         blurinessCollapsibleLayout = qt.QFormLayout(blurinessColapsibbleButton)
@@ -252,8 +249,7 @@ class UVISWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         
         
         blurinessLevelSliderLabel = qt.QLabel("Filter Level:")
-        
-        
+
         self.sigma_slider = qt.QSlider(qt.Qt.Horizontal)
         self.sigma_slider.setFocusPolicy(qt.Qt.StrongFocus)
         self.sigma_slider.setTickInterval(10)
@@ -597,8 +593,59 @@ class UVISWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
 
         self.layout.addStretch(1)
 
+       # self.game = EvaluationGame()
+        gameCollapsibleButton = ctk.ctkCollapsibleButton()
+        gameCollapsibleButton.text = "Game"
+        self.layout.addWidget(gameCollapsibleButton)
+        gameCollapsibleLayout = qt.QFormLayout(gameCollapsibleButton)
+
+        self.play_button = qt.QPushButton("Play")
+        self.play_button.setFixedSize(50, 30)
+      #  self.play_button.clicked.connect(self.game.play)  # Connect to your play_game function
+        
+        self.save_button = qt.QPushButton("Save")
+        self.save_button.setFixedSize(50, 30)
+      #  self.save_button.clicked.connect(self.game.save_data)
+
+    
+        self.reset_button = qt.QPushButton("Reset")
+        self.reset_button.setFixedSize(50, 30)
+      #  self.reset_button.clicked.connect(self.game.reset)  # Connect to your reset_game function
+
+        self.colorOverlay_checkBox = qt.QCheckBox("Color Overlay")
+        self.colorOverlay_checkBox.setFixedSize(130, 30)
+
+     #   self.colorOverlay_checkBox.toggled.connect(lambda:self.game.show_colorOverlay(self.colorOverlay_checkBox.isChecked()))
+        
+        
+        self.textMode_checkBox = qt.QCheckBox("Text Mode")
+        self.textMode_checkBox.setFixedSize(130, 30)
+
+    #    self.textMode_checkBox.toggled.connect(lambda:self.game.show_text(self.textMode_checkBox.isChecked()))
+        
+        self.audioMode_checkBox = qt.QCheckBox("Audio Mode")
+        self.audioMode_checkBox.setFixedSize(130, 30)
+
+    #    self.audioMode_checkBox.toggled.connect(lambda:self.game.changeAudioMode(self.audioMode_checkBox.isChecked()))
+        
+        
+            
+        gameLayout = qt.QGridLayout()
+        gameLayout.addWidget(self.play_button, 0, 0)
+        gameLayout.addWidget(self.reset_button, 0, 1)
+        gameLayout.addWidget(self.colorOverlay_checkBox, 1, 0)
+        gameLayout.addWidget(self.textMode_checkBox, 2, 0)
+        gameLayout.addWidget(self.audioMode_checkBox, 3, 0)
+        gameLayout.addWidget(self.save_button, 0,2)
 
 
+        
+        
+        
+
+        gameCollapsibleLayout.addRow(gameLayout)
+
+        
 class UVISLogic(ScriptedLoadableModuleLogic):
 
     def __init__(self):
@@ -1152,7 +1199,7 @@ class TexModeVisualization():
             if self.isOn:
                 try:
                 
-                    self.markupsNode.SetNthControlPointLabel(0,  u"\u00B1 " +  str(round(self.uncertaintyArray[point_Ijk[2]][point_Ijk[1]][point_Ijk[0]], 2)) + " mm" )
+                    self.markupsNode.SetNthControlPointLabel(0,  u"\u00B1 " +  str(round(self.uncertaintyArray[point_Ijk[2]][point_Ijk[1]][point_Ijk[0]])) + " mm" )
                     self.markupsNode.SetNthControlPointPosition(0, ras[0], ras[1], ras[2])
                     self.markupsNode.GetDisplayNode().SetGlyphSize(round(self.uncertaintyArray[point_Ijk[2]][point_Ijk[1]][point_Ijk[0]], 2))
                 
@@ -1179,11 +1226,14 @@ class AudioMode():
             self.detectedUncertaintyHigherthanThresholdPosition = None
             self.threshold = 5
             self.isOn = False
+            mixer.init()
+            mixer.music.load(self.audioPath + self.audioFileName)
        
     
             
     def setAudioFile(self, index):
             self.audioFileName = self.audioFileList[index]
+            mixer.music.load(self.audioPath + self.audioFileName)
 
             
     def turnOnAudioMode(self, isChecked):
@@ -1206,8 +1256,7 @@ class AudioMode():
                             distance = math.sqrt((self.previousPosition[0] - point_Ijk[0])**2 + (self.previousPosition[1] - point_Ijk[1])**2 + (self.previousPosition[2] - point_Ijk[2])**2)
 
                             if distance > 0.1:
-                                playsound(self.audioPath + self.audioFileName)
-                            
+                                mixer.music.play()
                             self.previousPosition = point_Ijk
                     
                     else:
@@ -1501,7 +1550,6 @@ class TumorBasedViS():
 
         elif Button == Button.Tumor:
             
-            print("HIIII")
             self.surface_mode_display_node.SetSliceIntersectionThickness(width)
             
         elif Button == Button.TumorSmaller:
@@ -1521,12 +1569,210 @@ class TumorBasedViS():
         
     
         
+class EvaluationGame():
+
+    def __init__(self):
+    
+        self.crosshairNode = slicer.util.getNode("Crosshair")
+        
+        self.userSeesGoldKaleVolume = slicer.util.array('UserSees_GoldKaleVolume')
+        self.userSeesGoldKaleNode = slicer.util.getNode('UserSees_GoldKaleVolume')
+        
+        self.gtNode = slicer.util.getNode('GroundTruthVolume')
+        self.gtVolume = slicer.util.array('GroundTruthVolume')
+        self.gtMapVolume = self.gtVolume.copy()
+
+        self.gtMapVolume[(self.gtVolume >= 230)] = 1
+        self.gtMapVolume[(self.gtVolume <= 25)] = -1
+        self.gtMapVolume[(self.gtVolume >= 25) & (self.gtVolume <= 230)] = 0
+
+        self.totalScoreTextNode = slicer.util.getNode('totalScoreTextNode')
+        self.scoreTextNode = slicer.util.getNode('scoreTextNode')
+        self.UncertaintyTextNode = slicer.util.getNode('UncertaintyTextNode')
+                
+        self.uncertaintyMapNode = slicer.util.getNode('UncertaintyMapVolume')
+        self.uncertaintyMapVolume =  slicer.util.array('UncertaintyMapVolume')
+        
+        self.userSeesNode  = slicer.util.getNode('UserSeesVolume')
+        self.userSeesVolume = slicer.util.array('UserSeesVolume')
+        self.userSeesMapVolume = self.userSeesVolume.copy()
+
+        self.userSeesMapVolume[(self.userSeesVolume >= 230)] = 1
+        self.userSeesMapVolume[(self.userSeesVolume <= 25)] = -1
+        self.userSeesMapVolume[(self.userSeesVolume >= 25) & (self.userSeesVolume <= 230)] = 0
+        self.goldKaleSize = self.userSeesGoldKaleVolume.shape
+        self.userSeesGoldKaleVolumeTemp = self.userSeesGoldKaleVolume.copy()
+        
+        self.uncertaintyNode = slicer.util.getNode('UncertaintyMapVolume')
+        self.compositeNode = slicer.mrmlScene.GetNodeByID('vtkMRMLSliceCompositeNodeYellow')
+        self.compositeNode.SetForegroundVolumeID(self.uncertaintyNode.GetID())
+        
+        self.uncertaintyArray = slicer.util.array('UncertaintyMapVolume')
+        self.uncertaintyArray = ((self.uncertaintyArray - 0) / (255 - 0)) * (10 - 1) + 1
+        
+        pygame.mixer.init()
+        pygame.mixer.music.load("Users/mahsa/BWH/Data/beep1.mp3")
+        
+        self.audioMode = False
+        
+        self.numberOfDameges = 0
+        self.VisualizationOn = False
         
         
+    def calculate_score_for(self, gtScore, userSeesScore):
+
+        if gtScore == -1 and userSeesScore == -1:
+
+            return 0
+
+        elif gtScore == -1 and userSeesScore == 0:
+
+            return -500000
+
+        elif gtScore == -1 and userSeesScore == 1:
+
+            return -500
+
+        elif gtScore == 0 and userSeesScore == -1:
+
+            return 0
+
+        elif gtScore == 0 and userSeesScore == 0:
+
+            return 0
+
+        elif gtScore == 0 and userSeesScore == 1:
+
+            return 0
+
+        elif gtScore == 1 and userSeesScore == -1:
+
+            return 2000
+
+        elif gtScore == 1 and userSeesScore == 0:
+
+            return 2000
+            return 2000
+
+        elif gtScore == 1 and userSeesScore == 1:
+
+            return 5
+
+    def onMouseMoved(self,observer,eventid):
+
+
+            ras = [1.0, 1.0, 1.0]
+
+            self.crosshairNode.GetCursorPositionRAS(ras)
+            volumeRasToIjk = vtk.vtkMatrix4x4()
+            self.userSeesGoldKaleNode.GetRASToIJKMatrix(volumeRasToIjk)
+
+            point_Ijk = [0, 0, 0, 1]
+            volumeRasToIjk.MultiplyPoint(np.append(ras,1.0), point_Ijk)
+            point_Ijk = [ int(round(c)) for c in point_Ijk[0:3] ]
+            radius = 50
+            z_range = range(max(0, point_Ijk[2] - radius), min(self.userSeesGoldKaleVolume.shape[0], point_Ijk[2] + radius + 1))
+            y_range = range(max(0, point_Ijk[1] - radius), min(self.userSeesGoldKaleVolume.shape[1], point_Ijk[1] + radius + 1))
+            x_range = range(max(0, point_Ijk[0] - radius), min(self.userSeesGoldKaleVolume.shape[2], point_Ijk[0] + radius + 1))
+
+            score = 0
+            for z in z_range:
+                for y in y_range:
+                    for x in x_range:
+                        if (x - point_Ijk[0]) ** 2 + (y - point_Ijk[1]) ** 2 + (z - point_Ijk[2]) ** 2 <= radius ** 2:
+                            tempScore = 0
+                            if not self.mindedPoints[z,y,x]:
+                                self.mindedPoints[z,y,x] = 1
+                                tempScore = self.calculate_score_for(self.gtMapVolume[z,y,x], self.userSeesMapVolume[z,y,x])/1000
+                            
+                            if(tempScore > 0):
+                               self.isGainingScoreStarted = True
+                            if self.isGainingScoreStarted:
+                                score += tempScore
+
+                            self.userSeesGoldKaleVolume[z, y, x] = 255.0
+ 
+
+            if self.uncertaintyArray[point_Ijk[2]][point_Ijk[1]][point_Ijk[0]] > 5 and self.isGainingScoreStarted  and self.audioMode  :
+                    pygame.mixer.music.play()
+                    
+            self.totalScore += score
+            self.totalScoreTextNode.SetNthControlPointLabel(0, "$ "+ str(round(self.totalScore)))
+            self.UncertaintyTextNode.SetNthControlPointLabel(0, u"\u00B1 " + str(round(self.uncertaintyArray[point_Ijk[2]][point_Ijk[1]][point_Ijk[0]])))
+            self.UncertaintyTextNode.SetNthControlPointPosition(0, ras[0], ras[1], ras[2])
+
+            if score < 0 and self.isGainingScoreStarted:
+                self.scoreTextNode.GetDisplayNode().SetTextScale(5)
+                self.scoreTextNode.GetDisplayNode().SetSelectedColor(1,0,0)
+                self.scoreTextNode.GetDisplayNode().SetActiveColor(1,0,0)
+            else:
+                self.scoreTextNode.GetDisplayNode().SetTextScale(4)
+                self.scoreTextNode.GetDisplayNode().SetSelectedColor(0,0,0)
+                self.scoreTextNode.GetDisplayNode().SetActiveColor(0,0,0)
+
+            if score > 0 :
+                self.scoreTextNode.SetNthControlPointLabel(0, "+" +str(round(score)))
+            elif score == 0:
+                self.scoreTextNode.SetNthControlPointLabel(0, "")
+            else:
+                self.numberOfDameges += 1
+                self.scoreTextNode.SetNthControlPointLabel(0, str(round(score)))
+
+            self.scoreTextNode.SetNthControlPointPosition(0, ras[0], ras[1], ras[2])
+
+            slicer.util.updateVolumeFromArray(self.userSeesGoldKaleNode, self.userSeesGoldKaleVolume)
+
+
+    
+    def play(self):
+    
+        self.mindedPoints = np.zeros(shape=(self.goldKaleSize[0], self.goldKaleSize[1], self.goldKaleSize[2]))
+        self.crosshairNodeId = self.crosshairNode.AddObserver(slicer.vtkMRMLCrosshairNode.CursorPositionModifiedEvent, self.onMouseMoved)
+        self.isGainingScoreStarted = False
+        self.totalScore = 0
+        NSCursor.hide()
+        print(self.VisualizationOn)
+    
+    def reset(self):
+
+        self.crosshairNode.RemoveAllObservers()
+        slicer.util.updateVolumeFromArray(self.userSeesGoldKaleNode, self.userSeesGoldKaleVolumeTemp)
+        self.userSeesGoldKaleVolume =  self.userSeesGoldKaleVolumeTemp.copy()
+        self.totalScore = 0
+        self.totalScoreTextNode.SetNthControlPointLabel(0, "$ "+ str(self.totalScore))
+        self.numberOfDameges = 0
         
+    def show_colorOverlay(self, isOn):
+        if isOn:
+        
+            self.compositeNode.SetForegroundOpacity(1)
+        
+        else:
+            self.compositeNode.SetForegroundOpacity(0)
+    
+        self.VisualizationOn = True
+    
+    def show_text(self, isOn):
+        
+        self.UncertaintyTextNode.SetDisplayVisibility(isOn)
+        self.VisualizationOn = True
+        
+        
+    def changeAudioMode(self, isOn):
+    
+        self.audioMode = isOn
+        self.VisualizationOn = True
         
     
-    
+    def save_data(self):
         
+        data_for_save = {
+        "Number Of Damages: ": self.numberOfDameges,
+        "Score " : self.totalScore,
+        "ExtedofResect: " : np.count_nonzero(self.userSeesGoldKaleVolume != 255),
+        "VisualizationOn" : self.VisualizationOn
+        
+        }
+        print(data_for_save)
     
     
