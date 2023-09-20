@@ -279,9 +279,11 @@ class UVISWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
 
         
         self.numberofBluredSectionsDropdown = qt.QComboBox()
-        self.numberofBluredSectionsDropdown.setFixedSize(50, 30)
-        for value in range(2, 13):
+        self.numberofBluredSectionsDropdown.setFixedSize(100, 30)
+        for value in range(2, 12):
             self.numberofBluredSectionsDropdown.addItem(str(value))
+            
+        self.numberofBluredSectionsDropdown.addItem("Non-Binary")
         self.numberofBluredSectionsDropdown.setCurrentIndex(0)
         self.numberofBluredSectionsDropdown.currentIndexChanged.connect(self.bluriness_number_of_section_changed)
         
