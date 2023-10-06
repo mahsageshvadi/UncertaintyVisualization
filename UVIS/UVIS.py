@@ -7,17 +7,16 @@ import numpy as np
 import enum
 import SimpleITK as sitk
 import math
+import pygame
+import objc
 
 from pygame import mixer
 from scipy.ndimage import gaussian_filter
 from slicer.ScriptedLoadableModule import *
 from slicer.util import VTKObservationMixin
 from vtk.util import numpy_support
-
-import objc
 from AppKit import NSCursor, NSView
-# UVIS
-#
+
 
 class UVIS(ScriptedLoadableModule):
     """Uses ScriptedLoadableModule base class, available at:
@@ -104,7 +103,7 @@ class UVISWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
             self.changeBlurinessTofuzzinessOrBlackOut.currentIndexChanged.connect(self.onFilterChanged)
 
 
-    def binaryColorMap(self, is_checked):
+    def select_binary_color_map(self, is_checked):
     
  
         self.logic.colorLUT.setisBinary(is_checked)
@@ -259,7 +258,7 @@ class UVISWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
 
         blurinessLThresholdSlider = qt.QLabel("Uncertainty Threshold:")
 
-    
+
 
         self.threshold_slider = qt.QSlider(qt.Qt.Horizontal)
         self.threshold_slider.setFocusPolicy(qt.Qt.StrongFocus)
@@ -289,10 +288,7 @@ class UVISWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         
         self.selectBlurinessCheckkBox = qt.QCheckBox("Enable")
         self.selectBlurinessCheckkBox.toggled.connect(lambda:self.blurinessModeSelected(self.selectBlurinessCheckkBox.isChecked()))
-                
 
-        
-  
         blurinessLayout.addWidget(blurinessLevelSliderLabel, 1, 0)
         blurinessLayout.addWidget(self.changeBlurinessTofuzzinessOrBlackOut, 2, 2, qt.Qt.AlignRight)
         blurinessLayout.addWidget(self.numberofBluredSectionsDropdown, 3, 2, qt.Qt.AlignRight )
@@ -458,7 +454,7 @@ class UVISWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         self.reset_button = qt.QPushButton("Reset")
         self.reset_button.setFixedSize(50, 30)
         self.binary_CheckBox = qt.QCheckBox("Binary Colors")
-        self.binary_CheckBox.toggled.connect(lambda: self.binaryColorMap(self.binary_CheckBox.isChecked()))
+        self.binary_CheckBox.toggled.connect(lambda: self.select_binary_color_map(self.binary_CheckBox.isChecked()))
         self.reset_button.connect('clicked()', self.resetColormapSelected)
 
                 
@@ -595,7 +591,8 @@ class UVISWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
 
         self.layout.addStretch(1)
 
-       # self.game = EvaluationGame()
+        """
+        self.game = EvaluationGame()
         gameCollapsibleButton = ctk.ctkCollapsibleButton()
         gameCollapsibleButton.text = "Game"
         self.layout.addWidget(gameCollapsibleButton)
@@ -603,32 +600,31 @@ class UVISWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
 
         self.play_button = qt.QPushButton("Play")
         self.play_button.setFixedSize(50, 30)
-      #  self.play_button.clicked.connect(self.game.play)  # Connect to your play_game function
+        self.play_button.clicked.connect(self.game.play)  # Connect to your play_game function
         
         self.save_button = qt.QPushButton("Save")
         self.save_button.setFixedSize(50, 30)
-      #  self.save_button.clicked.connect(self.game.save_data)
+        self.save_button.clicked.connect(self.game.save_data)
 
-    
         self.reset_button = qt.QPushButton("Reset")
         self.reset_button.setFixedSize(50, 30)
-      #  self.reset_button.clicked.connect(self.game.reset)  # Connect to your reset_game function
+        self.reset_button.clicked.connect(self.game.reset)  # Connect to your reset_game function
 
         self.colorOverlay_checkBox = qt.QCheckBox("Color Overlay")
         self.colorOverlay_checkBox.setFixedSize(130, 30)
 
-     #   self.colorOverlay_checkBox.toggled.connect(lambda:self.game.show_colorOverlay(self.colorOverlay_checkBox.isChecked()))
+        self.colorOverlay_checkBox.toggled.connect(lambda:self.game.show_colorOverlay(self.colorOverlay_checkBox.isChecked()))
         
         
         self.textMode_checkBox = qt.QCheckBox("Text Mode")
         self.textMode_checkBox.setFixedSize(130, 30)
 
-    #    self.textMode_checkBox.toggled.connect(lambda:self.game.show_text(self.textMode_checkBox.isChecked()))
+        self.textMode_checkBox.toggled.connect(lambda:self.game.show_text(self.textMode_checkBox.isChecked()))
         
         self.audioMode_checkBox = qt.QCheckBox("Audio Mode")
         self.audioMode_checkBox.setFixedSize(130, 30)
 
-    #    self.audioMode_checkBox.toggled.connect(lambda:self.game.changeAudioMode(self.audioMode_checkBox.isChecked()))
+        self.audioMode_checkBox.toggled.connect(lambda:self.game.changeAudioMode(self.audioMode_checkBox.isChecked()))
         
         
             
@@ -646,7 +642,7 @@ class UVISWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         
 
         gameCollapsibleLayout.addRow(gameLayout)
-
+"""
         
 class UVISLogic(ScriptedLoadableModuleLogic):
 
@@ -728,7 +724,7 @@ class UVISLogic(ScriptedLoadableModuleLogic):
     def turnVisualizationOff(self, isChecked):
 
             self.uncertaintyForeground.turnOff(isChecked)
-
+            self.logic.colorLUT.applyColorMap()
 
     def flickerModeSelected(self, isChecked):
         
@@ -951,16 +947,17 @@ class UncertaintyForegroundVisualization():
         if self.isSurgeonCentric:
             try:
                 
-                slicer.util.setSliceViewerLayers(foreground=self.uncertaintyVISVolumeNode, foregroundOpacity=0.5)
                 uncertaintyArray_croped = self.surgeonCentricArrayCalculation(point_Ijk)
                 self.updateForegroundWithArray(uncertaintyArray_croped)
+                slicer.util.setSliceViewerLayers(foreground=self.uncertaintyVISVolumeNode, foregroundOpacity=0.5)
+
                 self.uncertaintyVISVolumeNode.SetOrigin([ras[0]-(self.surgeonCentricMargin/2), ras[1]-(self.surgeonCentricMargin/2), ras[2]-(self.surgeonCentricMargin/2)])
                 
             except Exception as e:
                 pass
         else:
                 
-              #  slicer.util.setSliceViewerLayers(foreground=self.uncertaintyVISVolumeNode, foregroundOpacity=0.0)
+                slicer.util.setSliceViewerLayers(foreground=self.uncertaintyVISVolumeNode, foregroundOpacity=0.0)
 
                 self.updateForegroundWithArray(self.uncertaintyArray)
                 self.uncertaintyVISVolumeNode.SetOrigin(self.origin)
@@ -1143,7 +1140,7 @@ class BackgroundModifiedVisualization():
 
         if numberOfSections is not None:
             self.numberOfSections = numberOfSections
-            
+            """
         if sigmas is not None and uncertaintyBorders is not None:
             self.setBlurringVariables(sigmas, uncertaintyBorders)
         
@@ -1181,9 +1178,42 @@ class BackgroundModifiedVisualization():
         # Excluding the infinity mode
         if self.numberOfSections == 12:
             self.bluredFinalVolumeArray = self.nonBinaryblurredVolume
-
+        
         slicer.util.updateVolumeFromArray(self.BackgroundModifedVisualization, self.bluredFinalVolumeArray)
 
+"""
+        sigma_values = self.uncertaintyArray
+        original_volume = slicer.util.array('ref_ref_t2')
+        brain_volume = original_volume.copy()
+
+        sigma_values = np.round(sigma_values, 1)
+        max_sigma = np.max(sigma_values).astype(int)
+
+        blurred_volume_list = []
+        blurred_volume_index_list = []
+
+        for i in np.unique(sigma_values):
+            if self.filterType == "Light":
+                blurred_volume_list.append(self.adjust_brightness(brain_volume, sigma_values.max() / 10 - i / 10))
+            elif self.filterType == "Noise":
+                 blurred_volume_list.append(self.add_gaussian_noise(brain_volume, mean=0, std=i*15 - sigma_values.min()*15))
+            elif self.filterType == "Blur":
+                 blurred_volume_list.append(gaussian_filter(brain_volume, sigma=i*1.5- 5 ))
+
+            blurred_volume_index_list.append(i)
+
+        depth, height, width = brain_volume.shape
+        blurred_volume = np.zeros(shape=(depth, height, width))
+        # volumeNode = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLScalarVolumeNode")
+
+        for k in range(depth):
+            for j in range(height):
+                for i in range(width):
+                    sigma_value = sigma_values[k, j, i]
+                    index = blurred_volume_index_list.index(sigma_value)
+                    blurred_volume[k, j, i] = blurred_volume_list[index][k, j, i]
+
+        slicer.util.updateVolumeFromArray(self.BackgroundModifedVisualization, blurred_volume)
 
         self.resetBlurringVariables()
         slicer.util.setSliceViewerLayers(background=self.BackgroundModifedVisualization)
