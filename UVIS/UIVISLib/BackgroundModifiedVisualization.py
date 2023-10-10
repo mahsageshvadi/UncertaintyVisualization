@@ -186,3 +186,13 @@ class BackgroundModifiedVisualization():
 
         return np.round(uncertainty_array, decimal_place)
 
+    def get_all_filtered_volumes_and_index(self, filter_type, image_array_copy, sigma_values, filter_level,
+                                           filter_start_from_zero_threshold):
+
+        filtered_volume_list = []
+        filtered_volume_index_list = []
+
+        for i in np.unique(sigma_values):
+            filtered_volume_list.append(gaussian_filter(image_array_copy, sigma=i * filter_level -
+                                                                                filter_start_from_zero_threshold))
+            filtered_volume_index_list.append(i)
