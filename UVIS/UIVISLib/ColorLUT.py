@@ -1,4 +1,5 @@
 import numpy as np
+import slicer
 class ColorLUT():
 
     def __init__(self, uncertaintyVISVolumeNode):
