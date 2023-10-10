@@ -193,6 +193,16 @@ class BackgroundModifiedVisualization():
         filtered_volume_index_list = []
 
         for i in np.unique(sigma_values):
+
             filtered_volume_list.append(gaussian_filter(image_array_copy, sigma=i * filter_level -
-                                                                                filter_start_from_zero_threshold))
+                                                                filter_start_from_zero_threshold))
+            for i in np.unique(sigma_values):
+                if filter_type == "Light":
+                    filtered_volume_list.append(self.adjust_brightness(image_array_copy, sigma_values.max() / 10 - i / 10))
+                elif filter_type == "Noise":
+                    filtered_volume_list.append(
+                        self.add_gaussian_noise(image_array_copy, mean=0, std=i * 15 - sigma_values.min() * 15))
+                elif filter_type == "Blur":
+                    filtered_volume_list.append(gaussian_filter(image_array_copy, sigma=i * 1.5 - 5))
+
             filtered_volume_index_list.append(i)
