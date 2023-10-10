@@ -1,5 +1,6 @@
 import numpy as np
 import slicer
+import vtk, ctk, qt
 
 class UncertaintyForegroundVisualization():
     def __init__(self, uncertaintyNode):

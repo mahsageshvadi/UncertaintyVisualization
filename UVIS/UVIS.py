@@ -10,8 +10,9 @@ import math
 import pygame
 import objc
 import UIVISLib
-from UIVISLib.UncertaintyForegroundVisualization import UncertaintyForegroundVisualization
+import imp
 
+from UIVISLib.UncertaintyForegroundVisualization import UncertaintyForegroundVisualization
 from pygame import mixer
 from scipy.ndimage import gaussian_filter
 from slicer.ScriptedLoadableModule import *
@@ -63,7 +64,21 @@ class UVISWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         self.currentAudioThresholdValue = 40
         self.currentFlickerThresholdValue = 40
 
+    def onReload(self):
+        logging.debug("Reloading UIVISLib")
 
+        packageName='UIVISLib'
+        submoduleNames=['UncertaintyForegroundVisualization']
+        for submoduleName in submoduleNames:
+            print(packageName + '/' + submoduleName)
+            print(os.getcwd())
+            f, filename, description = imp.find_module(packageName + '/' + submoduleName)
+            try:
+                imp.load_module(packageName+'.'+submoduleName, f, filename, description)
+            finally:
+                f.close()
+
+        ScriptedLoadableModuleWidget.onReload(self)
             
     def onUncertaintyVolumeSelected(self):
 
@@ -225,12 +240,9 @@ class UVISWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
     def setup(self):
 
         ScriptedLoadableModuleWidget.setup(self)
-        
-
         directoryButton = qt.QPushButton("Select Image Volumes")
         self.layout.addWidget(directoryButton)
 
-        
         directoryButton = qt.QPushButton("Select Uncertainty Volume")
         self.layout.addWidget(directoryButton)
         directoryButton.connect('clicked()', self.onUncertaintyVolumeSelected)
@@ -645,7 +657,9 @@ class UVISWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
 
         gameCollapsibleLayout.addRow(gameLayout)
 """
-        
+
+
+
 class UVISLogic(ScriptedLoadableModuleLogic):
 
     def __init__(self):
