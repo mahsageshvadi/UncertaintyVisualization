@@ -2,6 +2,7 @@ import numpy as np
 import slicer
 from scipy.ndimage import gaussian_filter
 
+
 class BackgroundModifiedVisualization():
 
     def __init__(self, uncertaintyArray):
@@ -173,3 +174,15 @@ class BackgroundModifiedVisualization():
     def turnBluredVisualizationOff(self):
 
         slicer.util.setSliceViewerLayers(background=self.mainBackground)
+
+    def filtersCalculationsInitialization(self, image_array, uncertainty_array):
+
+        sigma_values = uncertainty_array
+        image_array_copy = image_array.copy()
+        sigma_values = self.generateSigmaValues(1, uncertainty_array)
+        max_sigma = np.max(sigma_values).astype(int)
+
+    def generateSigmaValues(self, decimal_place, uncertainty_array):
+
+        return np.round(uncertainty_array, decimal_place)
+

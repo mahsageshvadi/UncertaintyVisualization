@@ -69,7 +69,6 @@ class UVISWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         self.currentFlickerThresholdValue = 40
 
     def onReload(self):
-        logging.debug("Reloading UIVISLib")
 
         packageName='UIVISLib'
         submoduleNames=['UncertaintyForegroundVisualization', 'BackgroundModifiedVisualization',
