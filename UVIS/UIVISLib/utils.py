@@ -31,7 +31,8 @@ def get_filter_levels():
     return _filter_levels
 
 def get_project_root():
-    project_main_file_path = slicer.util.getModule(_Extention_name).path
+    #c = slicer.util.getModule(_Extention_name).path
+    project_main_file_path ='Users/mahsa/BWH/Silcer/Uncertainty_VIS/UVIS'
     last_slash_index = project_main_file_path.rfind('/')
 
     return project_main_file_path[:last_slash_index + 1]
