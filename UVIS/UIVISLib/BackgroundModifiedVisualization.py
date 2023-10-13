@@ -171,22 +171,25 @@ class BackgroundModifiedVisualization():
         slicer.util.setSliceViewerLayers(background=self.mainBackground)
 
 class CalculateAllFilters():
-    def filter_calculations_initialization(self, image_array, uncertainty_array):
+    def __init__(self, image_array, uncertainty_array):
+        self.image_array = image_array
+        self.uncertainty_array = uncertainty_array
 
+    def filter_calculations_initialization(self):
         filterd_volume_path = utils.get_project_root() + '/Data/FilteredVolumes'
         if not os.path.exists(filterd_volume_path):
             os.makedirs(filterd_volume_path)
 
-        image_array_copy = image_array.copy()
-        sigma_values = self.generate_sigma_values(1, uncertainty_array)
-        filter_start_from_zero_threshold_max = round(uncertainty_array.max()-1)
+        image_array_copy = self.image_array.copy()
+        sigma_values = self.generate_sigma_values(1, self.uncertainty_array)
+        filter_start_from_zero_threshold_max = round(self.uncertainty_array.max()-1)
         for filter_type in utils.get_filter_types():
             filtered_volumes_for_file = []
             for filter_level in utils.get_filter_levels():
                 for filter_start_from_zero_threshold in range(filter_start_from_zero_threshold_max):
                     filtered_volume_list, filtered_volume_index_list = self.get_all_filtered_volumes_and_index(
                     filter_type,image_array_copy, sigma_values, filter_level, filter_start_from_zero_threshold)
-                    final_filtered_volume = self.calculate_final_filtered_volume(image_array, sigma_values, filtered_volume_index_list,
+                    final_filtered_volume = self.calculate_final_filtered_volume(self.image_array, sigma_values, filtered_volume_index_list,
                                         filtered_volume_list)
                     filtered_volumes_for_file.append(final_filtered_volume)
             file_name = filter_type + '-filteredVolumes.npy'
