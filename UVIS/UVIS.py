@@ -12,12 +12,14 @@ import objc
 import UIVISLib
 import imp
 
+
 from UIVISLib.UncertaintyForegroundVisualization import UncertaintyForegroundVisualization
 from UIVISLib.BackgroundModifiedVisualization import BackgroundModifiedVisualization
 from UIVISLib.TexModeVisualization import TexModeVisualization
 from UIVISLib.ColorLUT import ColorLUT
 from UIVISLib.AudioMode import AudioMode
 from UIVISLib.TumorBasedVis import TumorBasedVis
+import UIVISLib.utils
 
 from slicer.ScriptedLoadableModule import *
 from slicer.util import VTKObservationMixin
@@ -32,20 +34,18 @@ class UVIS(ScriptedLoadableModule):
 
     def __init__(self, parent):
         ScriptedLoadableModule.__init__(self, parent)
-        self.parent.title = "UVIS"  # TODO: make this more human readable by adding spaces
-        self.parent.categories = ["Examples"]  # TODO: set categories (folders where the module shows up in the module selector)
-        self.parent.dependencies = []  # TODO: add here list of module names that this module requires
-        self.parent.contributors = ["Mahsa Geshvadi"]  # TODO: replace with "Firstname Lastname (Organization)"
-        # TODO: update with short description of the module and a link to online module documentation
+        self.parent.title = "UVIS"
+        self.parent.categories = ["Examples"]
+        self.parent.dependencies = []
+        self.parent.contributors = ["Mahsa Geshvadi"]
         self.parent.helpText = """
-        This is a scripted loadable module bundled into the Continuous Monitoring Extension.
-        It supports the tracking of surgical instruments and the construction and display of the positions
-        visited by the instruments within a volume of interest.
+        This module is an uncertainty visualization module which gets the uncertainty values and images and enables 
+        the usert to explore different possible visualizations
+        
         """
         self.parent.helpText += self.getDefaultModuleDocumentationLink()
         self.parent.acknowledgementText = """
-        This file was originally developed by Sarah Frisken, Radiology, BWH and was partially funded
-        by NIH grant R01EB027134-01.
+        This file was originally developed by Mahsa Geshvadi Radiology Departmenet at Brigham and women's Hospital.
         """
 
 class Button(enum.Enum):
@@ -63,8 +63,8 @@ class UVISWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         self.logic = UVISLogic()
         ScriptedLoadableModuleWidget.__init__(self, parent)
         self.currentBlurinessIndex = 0
-        self.currentBlurinesssigma = 30
-        self.currentBlurinessBorderValue = 40
+        self.current_filter_level = 0
+        self.current_filter_threshold_changed = 1
         self.currentAudioThresholdValue = 40
         self.currentFlickerThresholdValue = 40
 
@@ -74,8 +74,7 @@ class UVISWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         submoduleNames=['UncertaintyForegroundVisualization', 'BackgroundModifiedVisualization',
                         'TexModeVisualization', 'ColorLUT', 'AudioMode', 'TumorBasedVis', 'EvaluationGame']
         for submoduleName in submoduleNames:
-            print(packageName + '/' + submoduleName)
-            print(os.getcwd())
+
             f, filename, description = imp.find_module(packageName + '/' + submoduleName)
             try:
                 imp.load_module(packageName+'.'+submoduleName, f, filename, description)
@@ -100,14 +99,14 @@ class UVISWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
             self.x_slider.setMaximum(self.uncertaintyArray.max()+ 1)
             self.x_slider.valueChanged.connect(self.apply_threshold)
 
-            self.sigma_slider.setMinimum(0.1)
-            self.sigma_slider.setMaximum(1500)
-            self.sigma_slider.valueChanged.connect(self.sigma_changed)
+            self.sigma_slider.setMinimum(UIVISLib.utils.get_filter_levels()[0])
+            self.sigma_slider.setMaximum(UIVISLib.utils.get_filter_levels()[-1])
+            self.sigma_slider.valueChanged.connect(self.filter_level_changed)
             
-            self.threshold_slider.setMinimum(round(self.uncertaintyArray.min()*100))
-            self.threshold_slider.setMaximum(round(self.uncertaintyArray.max()*100))
-            self.threshold_slider.valueChanged.connect(self.bluriness_border_changed)
-            self.threshold_slider.setValue(self.currentBlurinessBorderValue*10)
+            self.threshold_slider.setMinimum(round(self.uncertaintyArray.min()-1))
+            self.threshold_slider.setMaximum(round(self.uncertaintyArray.max()-1))
+            self.threshold_slider.valueChanged.connect(self.filter_threshold_changed)
+            self.threshold_slider.setValue(self.current_filter_threshold_changed * 10)
 
             self.audio_threshold_slider.setMinimum(round(self.uncertaintyArray.min()*100))
             self.audio_threshold_slider.setMaximum(round(self.uncertaintyArray.max()*100))
@@ -118,15 +117,11 @@ class UVISWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
             self.flicker_threshold_slider.setMaximum(round(self.uncertaintyArray.max()*100))
             self.flicker_threshold_slider.valueChanged.connect(self.flicker_threshold_changed)
             self.flicker_threshold_slider.setValue(self.currentFlickerThresholdValue*10)
-
-            
             self.cursorType.currentIndexChanged.connect(self.logic.onCursorchanged)
-            self.changeBlurinessTofuzzinessOrBlackOut.currentIndexChanged.connect(self.onFilterChanged)
+            self.changeFilterType.currentIndexChanged.connect(self.onFilterChanged)
 
 
     def select_binary_color_map(self, is_checked):
-    
- 
         self.logic.colorLUT.setisBinary(is_checked)
         self.logic.colorLUT.applyColorMap()
 
@@ -161,16 +156,16 @@ class UVISWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
     
             self.logic.tumorBasedViS.change_opacity(Button, opacity)
     
-    def sigma_changed(self, sigma):
-        
-            self.currentBlurinesssigma = sigma
-            self.logic.blurinessNumberOfSectionChanged(index =self.currentBlurinessIndex, blurinessIntencity=sigma/300, notBlureddUncertaintyIncrease =self.currentBlurinessBorderValue/100 )
-    
-    def bluriness_border_changed(self, bluriness_border):
-            
-            self.currentBlurinessBorderValue = bluriness_border
-            self.logic.blurinessNumberOfSectionChanged( index =self.currentBlurinessIndex,blurinessIntencity= self.currentBlurinesssigma/300, notBlureddUncertaintyIncrease=bluriness_border/100)
-            self.slider_value_label.setText(f"{bluriness_border/100} mm")
+    def filter_level_changed(self, filter_level):
+
+            self.current_filter_level = filter_level
+            self.logic.filter_level_changed(filter_level)
+
+    def filter_threshold_changed(self, filter_threshold):
+
+            self.current_filter_threshold_changed = filter_threshold
+            self.logic.filter_threshold_changed(filter_threshold)
+            self.slider_value_label.setText(f"{filter_threshold } mm")
 
     def audio_threshold_changed(self, new_threshold):
     
@@ -185,16 +180,16 @@ class UVISWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
             self.logic.uncertaintyForeground.setFlickerThreshold(new_threshold)
 
     
-    def bluriness_number_of_section_changed(self, index):
+  #  def bluriness_number_of_section_changed(self, index):
             
-            self.currentBlurinessIndex = index
-            self.logic.blurinessNumberOfSectionChanged(index = index, blurinessIntencity= self.currentBlurinesssigma/300, notBlureddUncertaintyIncrease =self.currentBlurinessBorderValue/100)
+          #  self.currentBlurinessIndex = index
+          #  self.logic.blurinessNumberOfSectionChanged(index = index, blurinessIntencity= self.currentBlurinesssigma/300, notBlureddUncertaintyIncrease =self.currentBlurinessBorderValue/100)
     
-    def blurinessModeSelected(self, inChecked):
-    
+    def filterModeSelected(self, inChecked):
+
         if inChecked:
             
-            self.logic.backgroundModifiedVisualization.visualizeBluredBackground()
+            self.logic.backgroundModifiedVisualization.visualizeFilteredBackground()
         else:
     
             self.logic.backgroundModifiedVisualization.turnBluredVisualizationOff()
@@ -226,7 +221,7 @@ class UVISWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
             filterType = "Light"
             
         self.logic.backgroundModifiedVisualization.setFilterType(filterType)
-        self.logic.blurinessNumberOfSectionChanged(index =self.currentBlurinessIndex, blurinessIntencity= self.currentBlurinesssigma/300, notBlureddUncertaintyIncrease =self.currentBlurinessBorderValue/100 )
+        self.logic.blurinessNumberOfSectionChanged(index =self.currentBlurinessIndex, blurinessIntencity=self.current_filter_level / 300, notBlureddUncertaintyIncrease =self.current_filter_threshold_changed / 100)
 
     def resetColormapSelected(self):
         self.logic.colorLUT.resetLUTTogrey()
@@ -260,39 +255,32 @@ class UVISWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
 
         self.layout.addWidget(blurinessColapsibbleButton)
         blurinessCollapsibleLayout = qt.QFormLayout(blurinessColapsibbleButton)
-
-        blurinessLayout = qt.QGridLayout()
-        
-        
-        
+        filter_Layout = qt.QGridLayout()
         blurinessLevelSliderLabel = qt.QLabel("Filter Level:")
 
         self.sigma_slider = qt.QSlider(qt.Qt.Horizontal)
         self.sigma_slider.setFocusPolicy(qt.Qt.StrongFocus)
         self.sigma_slider.setTickInterval(10)
         self.sigma_slider.setFixedSize(200, 30)
-        self.sigma_slider.setValue(self.currentBlurinesssigma)
-
+        self.sigma_slider.setValue(self.current_filter_level)
 
         blurinessLThresholdSlider = qt.QLabel("Uncertainty Threshold:")
-
-
 
         self.threshold_slider = qt.QSlider(qt.Qt.Horizontal)
         self.threshold_slider.setFocusPolicy(qt.Qt.StrongFocus)
         self.threshold_slider.setTickInterval(10)
         self.threshold_slider.setFixedSize(200, 30)
-        self.threshold_slider.setValue(self.currentBlurinessBorderValue)
+        self.threshold_slider.setValue(self.current_filter_threshold_changed)
         
-        self.slider_value_label = qt.QLabel(str(self.currentBlurinessBorderValue/10) + " mm")
+        self.slider_value_label = qt.QLabel(str(self.current_filter_threshold_changed) + " mm")
 
 
-        self.changeBlurinessTofuzzinessOrBlackOut = qt.QComboBox()
-        self.changeBlurinessTofuzzinessOrBlackOut.setFixedSize(120, 30)
-        self.changeBlurinessTofuzzinessOrBlackOut.addItem("Guassian")
-        self.changeBlurinessTofuzzinessOrBlackOut.addItem("Noise")
-        self.changeBlurinessTofuzzinessOrBlackOut.addItem("Transparancy")
-        self.changeBlurinessTofuzzinessOrBlackOut.setCurrentIndex(0)
+        self.changeFilterType = qt.QComboBox()
+        self.changeFilterType.setFixedSize(120, 30)
+        self.changeFilterType.addItem("Guassian")
+        self.changeFilterType.addItem("Noise")
+        self.changeFilterType.addItem("Transparancy")
+        self.changeFilterType.setCurrentIndex(0)
 
         
         self.numberofBluredSectionsDropdown = qt.QComboBox()
@@ -302,22 +290,22 @@ class UVISWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
             
         self.numberofBluredSectionsDropdown.addItem("Non-Binary")
         self.numberofBluredSectionsDropdown.setCurrentIndex(0)
-        self.numberofBluredSectionsDropdown.currentIndexChanged.connect(self.bluriness_number_of_section_changed)
+      #  self.numberofBluredSectionsDropdown.currentIndexChanged.connect(self.bluriness_number_of_section_changed)
         
-        self.selectBlurinessCheckkBox = qt.QCheckBox("Enable")
-        self.selectBlurinessCheckkBox.toggled.connect(lambda:self.blurinessModeSelected(self.selectBlurinessCheckkBox.isChecked()))
+        self.selectFilterCheckkBox = qt.QCheckBox("Enable")
+        self.selectFilterCheckkBox.toggled.connect(lambda:self.filterModeSelected(self.selectFilterCheckkBox.isChecked()))
 
-        blurinessLayout.addWidget(blurinessLevelSliderLabel, 1, 0)
-        blurinessLayout.addWidget(self.changeBlurinessTofuzzinessOrBlackOut, 2, 2, qt.Qt.AlignRight)
-        blurinessLayout.addWidget(self.numberofBluredSectionsDropdown, 3, 2, qt.Qt.AlignRight )
-        blurinessLayout.addWidget(self.selectBlurinessCheckkBox, 0, 0, qt.Qt.AlignLeft)
-        blurinessLayout.addWidget(self.sigma_slider, 2, 0)
-        blurinessLayout.addWidget(blurinessLThresholdSlider, 3, 0)
+        filter_Layout.addWidget(blurinessLevelSliderLabel, 1, 0)
+        filter_Layout.addWidget(self.changeFilterType, 2, 2, qt.Qt.AlignRight)
+        filter_Layout.addWidget(self.numberofBluredSectionsDropdown, 3, 2, qt.Qt.AlignRight )
+        filter_Layout.addWidget(self.selectFilterCheckkBox, 0, 0, qt.Qt.AlignLeft)
+        filter_Layout.addWidget(self.sigma_slider, 2, 0)
+        filter_Layout.addWidget(blurinessLThresholdSlider, 3, 0)
         slider_layout = qt.QHBoxLayout()
         slider_layout.addWidget(self.threshold_slider)
         slider_layout.addWidget(self.slider_value_label)
-        blurinessLayout.addLayout(slider_layout, 4, 0)
-        blurinessCollapsibleLayout.addRow(blurinessLayout)
+        filter_Layout.addLayout(slider_layout, 4, 0)
+        blurinessCollapsibleLayout.addRow(filter_Layout)
 
 
         self.layout.addStretch(1)
@@ -716,7 +704,7 @@ class UVISLogic(ScriptedLoadableModuleLogic):
         self.markupVis = TexModeVisualization(self.uncertaintyArray)
         self.colorLUT = ColorLUT(self.uncertaintyForeground.uncertaintyVISVolumeNode)
         self.backgroundModifiedVisualization = BackgroundModifiedVisualization(self.uncertaintyArray)
-        self.tumorBasedViS = TumorBasedViS(self.uncertaintyArray)
+        self.tumorBasedViS = TumorBasedVis(self.uncertaintyArray)
         self.audioMode = AudioMode(self.uncertaintyArray)
         
     def surgeonCentricModeSelected(self, isChecked):
@@ -815,10 +803,10 @@ class UVISLogic(ScriptedLoadableModuleLogic):
             index +=1
         
         self.markupVis.changeGlyphType(index+1)
-    
-    
+
+
     def blurinessNumberOfSectionChanged(self, index, blurinessIntencity=1, notBlureddUncertaintyIncrease=0):
-            
+
            currentNumberofSections = index + 2
            sigmas = []
            uncertaintyBorders = []
@@ -827,22 +815,23 @@ class UVISLogic(ScriptedLoadableModuleLogic):
            uncertaintysectionsValue = uncertaintyrange/currentNumberofSections
            uncertaintyrangeWithNotBluredIncreased = uncertaintyrange - notBlureddUncertaintyIncrease
            uncertaintysectionsValueWithNotBluredIncreased = uncertaintyrangeWithNotBluredIncreased/(currentNumberofSections-1)
-            
+
            for i in range(currentNumberofSections):
-                
+
                 sigmas.append(i * uncertaintysectionsValue * blurinessIntencity)
-                
+
                 if i != currentNumberofSections:
                         if i ==0:
                             uncertaintyBorders.append(self.uncertaintyArray.min())
                         else:
                             uncertaintyBorders.append(notBlureddUncertaintyIncrease + uncertaintysectionsValueWithNotBluredIncreased * (i-1))
-               
+
            uncertaintyBorders.append(self.uncertaintyArray.max())
-           self.backgroundModifiedVisualization.visualizeBluredBackground(sigmas,uncertaintyBorders, currentNumberofSections)
-
-
-        
+           self.backgroundModifiedVisualization.visualizeFilteredBackground(sigmas, uncertaintyBorders, currentNumberofSections)
+    def filter_level_changed(self, filter_level):
+        self.backgroundModifiedVisualization.filter_level_changed(filter_level)
+    def filter_threshold_changed(self, filter_threshold):
+        self.backgroundModifiedVisualization.filter_threshold_changed(filter_threshold)
     def onMouseMoved(self, observer,eventid):
         ras = [1.0, 1.0, 1.0]
         self.crosshairNode.GetCursorPositionRAS(ras)

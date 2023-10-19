@@ -1,6 +1,8 @@
 import math
 import enum
 import slicer
+import vtk
+import numpy as np
 class Button(enum.Enum):
     One = 1
     Two = 2

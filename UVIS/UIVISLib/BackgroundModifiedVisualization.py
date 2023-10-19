@@ -1,6 +1,5 @@
 import numpy as np
 import slicer
-#import utils
 import os
 from scipy.ndimage import gaussian_filter
 
@@ -20,14 +19,12 @@ class BackgroundModifiedVisualization():
         self.mainBackground = slicer.util.getNode('ref_ref_t2')
         self.origin = self.mainBackground.GetOrigin()
         self.BackgroundModifedVisualization.SetOrigin(self.origin)
-        self.filterType = "Blur"
-
         self.uncertaintyArray = uncertaintyArray
 
-        self.initializeBluringVariables()
+        self.initializeFilteringVariables()
         self.nonBinaryModeInitiation()
 
-    def initializeBluringVariables(self):
+    def initializeFilteringVariables(self):
 
         self.numberOfSections = 2
         self.sigmas = [0, 3]
@@ -36,14 +33,34 @@ class BackgroundModifiedVisualization():
         self.uncertaintyBorders = [self.uncertaintyArray.min(), 4, self.uncertaintyArray.max()]
         self.masked_uncertainty_volumes = []
         self.blured_masked_volumes = []
+        self.current_filter_level = 0
+        self.current_filter_thershold = round(self.uncertaintyArray.min())
+        self.filterType = "Blur"
+        self.filteredAllVolumes = {'Blur': np.load('/Users/mahsa/BWH/Silcer/Uncertainty_VIS/Data/FilteredVolumes/FilteredVolumesBlur-filteredVolumes.npy'),
+               'Noise': np.load('/Users/mahsa/BWH/Silcer/Uncertainty_VIS/Data/FilteredVolumes'
+                                '/FilteredVolumesNoise-filteredVolumes.npy'),
+               'Light': np.load('/Users/mahsa/BWH/Silcer/Uncertainty_VIS/Data/FilteredVolumes'
+                                '/FilteredVolumesLight-filteredVolumes.npy')}
+
+        self.currentFilteredVolume = self.filteredAllVolumes['Blur'][0][:][:][:]
+
+
+    def getCurrentAllVolumes(self, filter_type):
+
+        return self.filteredAllVolumes
+
 
     def setBlurringVariables(self, sigmas, uncertaintyBorders):
 
         self.sigmas = sigmas
         self.uncertaintyBorders = uncertaintyBorders
 
-    def setFilterType(self, filterType):
-        self.filterType = filterType
+    def setFilterType(self, filter_type):
+        self.filterType = filter_type
+
+        self.filteredAllVolumes = self.getCurrentAllVolumes(filter_type)
+        self.currentFilteredVolume = self.filteredAllVolumes[filter_type][0][:][:][:]
+
 
     def resetBlurringVariables(self):
 
@@ -52,9 +69,6 @@ class BackgroundModifiedVisualization():
         self.masked_uncertainty_volumes = []
         self.blured_masked_volumes = []
 
-    def add_gaussian_noise(self, volume, mean=0, std=1):
-        noise = np.random.normal(mean, std, size=volume.shape)
-        return volume + noise
 
     def nonBinaryModeInitiation(self):
 
@@ -81,11 +95,37 @@ class BackgroundModifiedVisualization():
                     index = blurred_volume_index_list.index(sigma_value)
                     self.nonBinaryblurredVolume[k, j, i] = blurred_volume_list[index][k, j, i]
 
-    def visualizeBluredBackground(self, sigmas=None, uncertaintyBorders=None, numberOfSections=None):
+    def filter_level_changed(self, filter_level):
+        self.current_filter_level = filter_level
+
+        if self.filterType == 'Light':
+            self.currentFilteredVolume = (
+                    self.filteredAllVolumes[self.filterType][8-(self.current_filter_thershold  -1)][:][:][:])
+        else:
+            self.currentFilteredVolume = self.filteredAllVolumes[self.filterType][filter_level* 9 + (self.current_filter_thershold-round(self.uncertaintyArray.min() -1))][:][:][:]
+        self.visualizeFilteredBackground()
+
+    def filter_threshold_changed(self, filter_threshold):
+        self.current_filter_thershold = filter_threshold
+
+        if self.filterType == 'Light':
+            self.currentFilteredVolume = (
+                    self.filteredAllVolumes[self.filterType][8-(self.current_filter_thershold  -1)][:][:][:])
+        else:
+            self.currentFilteredVolume = self.filteredAllVolumes[self.filterType][self.current_filter_level* 9 + (self.current_filter_thershold -round(self.uncertaintyArray.min() -1))][:][:][:]
+        self.visualizeFilteredBackground()
+
+    def visualizeFilteredBackground(self, sigmas=None, uncertaintyBorders=None, numberOfSections=None):
 
         if numberOfSections is not None:
             self.numberOfSections = numberOfSections
-            """
+
+        slicer.util.updateVolumeFromArray(self.BackgroundModifedVisualization, self.currentFilteredVolume)
+
+        self.resetBlurringVariables()
+        slicer.util.setSliceViewerLayers(background=self.BackgroundModifedVisualization)
+
+    """
         if sigmas is not None and uncertaintyBorders is not None:
             self.setBlurringVariables(sigmas, uncertaintyBorders)
 
@@ -126,42 +166,8 @@ class BackgroundModifiedVisualization():
 
         slicer.util.updateVolumeFromArray(self.BackgroundModifedVisualization, self.bluredFinalVolumeArray)
 
-"""
-        sigma_values = self.uncertaintyArray
-        original_volume = slicer.util.array('ref_ref_t2')
-        brain_volume = original_volume.copy()
+    """
 
-        sigma_values = np.round(sigma_values, 1)
-        max_sigma = np.max(sigma_values).astype(int)
-
-        blurred_volume_list = []
-        blurred_volume_index_list = []
-
-        for i in np.unique(sigma_values):
-            if self.filterType == "Light":
-                blurred_volume_list.append(self.adjust_brightness(brain_volume, sigma_values.max() / 10 - i / 10))
-            elif self.filterType == "Noise":
-                blurred_volume_list.append(
-                    self.add_gaussian_noise(brain_volume, mean=0, std=i * 15 - sigma_values.min() * 15))
-            elif self.filterType == "Blur":
-                blurred_volume_list.append(gaussian_filter(brain_volume, sigma=i * 1.5 - 5))
-
-            blurred_volume_index_list.append(i)
-        depth, height, width = brain_volume.shape
-        blurred_volume = np.zeros(shape=(depth, height, width))
-        # volumeNode = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLScalarVolumeNode")
-
-        for k in range(depth):
-            for j in range(height):
-                for i in range(width):
-                    sigma_value = sigma_values[k, j, i]
-                    index = blurred_volume_index_list.index(sigma_value)
-                    blurred_volume[k, j, i] = blurred_volume_list[index][k, j, i]
-
-        slicer.util.updateVolumeFromArray(self.BackgroundModifedVisualization, blurred_volume)
-
-        self.resetBlurringVariables()
-        slicer.util.setSliceViewerLayers(background=self.BackgroundModifedVisualization)
 
     def turnBluredVisualizationOff(self):
 

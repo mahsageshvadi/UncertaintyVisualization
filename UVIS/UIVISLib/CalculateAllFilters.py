@@ -5,8 +5,6 @@ import nibabel as nib
 
 from scipy.ndimage import gaussian_filter
 
-
-
 class CalculateAllFilters():
     def __init__(self, image_array, uncertainty_array):
         self.image_array = image_array
@@ -19,13 +17,19 @@ class CalculateAllFilters():
 
         image_array_copy = self.image_array.copy()
         sigma_values = self.generate_sigma_values(1, self.uncertainty_array)
-        filter_threshold_max = round(self.uncertainty_array.max() - 1)
+        filter_threshold_max = round(self.uncertainty_array.max()-1)
+        filter_threshold_min = round(self.uncertainty_array.min()-1)
         for filter_type in utils.get_filter_types():
             filtered_volumes_for_file = []
             for filter_level in utils.get_filter_levels():
-                for filter_threshold in range(filter_threshold_max):
+                for filter_threshold in range(filter_threshold_min, filter_threshold_max):
+
+                    # get all the filter possibilities with different threshold between
+                    # min and max and different filter levels
                     filtered_volume_list, filtered_volume_index_list = self.get_all_filtered_volumes_and_index(
                     filter_type, image_array_copy, sigma_values, filter_level, filter_threshold)
+                    # now we have all possibilities then we should assign each sigma uncertainty value with the
+                    # corresponding filtered volume
                     final_filtered_volume = self.calculate_final_filtered_volume(self.image_array, sigma_values, filtered_volume_index_list,
                                         filtered_volume_list)
                     filtered_volumes_for_file.append(final_filtered_volume)
@@ -51,7 +55,6 @@ class CalculateAllFilters():
                     filtered_volume_list.append(image_array_copy)
                 else:
                     filtered_volume_list.append(self.add_gaussian_noise(image_array_copy, mean=0, std= (i - filter_threshold) * (2.5*filter_level + 2.5)))
-
             elif filter_type == "Blur":
                 filtered_volume_list.append(gaussian_filter(image_array_copy,
                                                                 sigma=(i - filter_threshold) *(0.25 * (filter_level + 1))))
@@ -78,7 +81,6 @@ class CalculateAllFilters():
     def adjust_brightness(self, volume, sigma_max, sigma_value, filter_threshold):
 
         factor = (sigma_max - sigma_value) / sigma_max
-
         return (volume * factor) - filter_threshold * 10
 
     def add_gaussian_noise(self, volume, mean=0, std=1):
@@ -87,8 +89,9 @@ class CalculateAllFilters():
         return volume + noise
 
 if __name__ == '__main__':
+
     image_array_file = nib.load('/Users/mahsa/BWH/Data/ref_ref_t2.nii')
-    image_array_data = image_array_file.get_fdata()
+    image_array_data = image_array_file.get_data()
 
     uncertainty_array_file = nib.load('/Users/mahsa/BWH/Data/gp_uncertainty.nii')
     uncertainty_array_data = uncertainty_array_file.get_fdata()
