@@ -239,14 +239,12 @@ class UVISWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
     def setup(self):
 
         ScriptedLoadableModuleWidget.setup(self)
-        directoryButton = qt.QPushButton("Select Image Volumes")
-        self.layout.addWidget(directoryButton)
 
-        directoryButton = qt.QPushButton("Select Uncertainty Volume")
-        self.layout.addWidget(directoryButton)
-        directoryButton.connect('clicked()', self.onUncertaintyVolumeSelected)
+        self.uiWidget = slicer.util.loadUI(self.resourcePath('UI/UVIS.ui'))
+        self.layout.addWidget(self.uiWidget)
 
-        self.layout.addStretch(1)
+        select_uncertainty_button = self.uiWidget.findChild(qt.QPushButton, "select_Uncertainty_Volume")
+        select_uncertainty_button.connect('clicked()', self.onUncertaintyVolumeSelected)
 
 
         
