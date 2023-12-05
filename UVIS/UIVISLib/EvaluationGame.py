@@ -1,8 +1,10 @@
 import slicer
 import numpy as np
+import vtk
 class EvaluationGame():
 
     def __init__(self):
+
 
         self.crosshairNode = slicer.util.getNode("Crosshair")
 
@@ -41,8 +43,8 @@ class EvaluationGame():
         self.uncertaintyArray = slicer.util.array('UncertaintyMapVolume')
         self.uncertaintyArray = ((self.uncertaintyArray - 0) / (255 - 0)) * (10 - 1) + 1
 
-        pygame.mixer.init()
-        pygame.mixer.music.load("Users/mahsa/BWH/Data/beep1.mp3")
+       # pygame.mixer.init()
+       # pygame.mixer.music.load("Users/mahsa/BWH/Data/beep1.mp3")
 
         self.audioMode = False
 
@@ -127,7 +129,8 @@ class EvaluationGame():
 
         if self.uncertaintyArray[point_Ijk[2]][point_Ijk[1]][
             point_Ijk[0]] > 5 and self.isGainingScoreStarted and self.audioMode:
-            pygame.mixer.music.play()
+            pass
+            #pygame.mixer.music.play()
 
         self.totalScore += score
         self.totalScoreTextNode.SetNthControlPointLabel(0, "$ " + str(round(self.totalScore)))
@@ -163,9 +166,14 @@ class EvaluationGame():
                                                               self.onMouseMoved)
         self.isGainingScoreStarted = False
         self.totalScore = 0
-        NSCursor.hide()
-        print(self.VisualizationOn)
+        self.setupGameScene()
+       # NSCursor.hide()
 
+    def setupGameScene(self):
+        slicer.util.setSliceViewerLayers(foreground=self.userSeesGoldKaleNode, foregroundOpacity=1)
+        defaultSliceCompositeNode = slicer.vtkMRMLSliceCompositeNode()
+        defaultSliceCompositeNode.SetLinkedControl(2)
+        slicer.mrmlScene.AddDefaultNode(defaultSliceCompositeNode)
     def reset(self):
 
         self.crosshairNode.RemoveAllObservers()

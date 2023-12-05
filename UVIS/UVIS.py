@@ -7,7 +7,6 @@ import numpy as np
 import enum
 import SimpleITK as sitk
 import math
-import pygame
 import objc
 import UIVISLib
 import imp
@@ -19,6 +18,7 @@ from UIVISLib.TexModeVisualization import TexModeVisualization
 from UIVISLib.ColorLUT import ColorLUT
 from UIVISLib.AudioMode import AudioMode
 from UIVISLib.TumorBasedVis import TumorBasedVis
+from UIVISLib.EvaluationGame import EvaluationGame
 import UIVISLib.utils
 
 from slicer.ScriptedLoadableModule import *
@@ -231,10 +231,6 @@ class UVISWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
     def on_spinbox_value_changed(self, Button, value):
                 
         self.logic.tumorBasedViS.set_line_width(Button, value)
-    
-    
-
-
 
     def setup(self):
 
@@ -246,8 +242,6 @@ class UVISWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         select_uncertainty_button = self.uiWidget.findChild(qt.QPushButton, "select_Uncertainty_Volume")
         select_uncertainty_button.connect('clicked()', self.onUncertaintyVolumeSelected)
 
-
-        
         blurinessColapsibbleButton = ctk.ctkCollapsibleButton()
         blurinessColapsibbleButton.text = "Volume Filtering"
 
@@ -595,7 +589,7 @@ class UVISWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
 
         self.layout.addStretch(1)
 
-        """
+
         self.game = EvaluationGame()
         gameCollapsibleButton = ctk.ctkCollapsibleButton()
         gameCollapsibleButton.text = "Game"
@@ -646,7 +640,7 @@ class UVISWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         
 
         gameCollapsibleLayout.addRow(gameLayout)
-"""
+
 
 
 
