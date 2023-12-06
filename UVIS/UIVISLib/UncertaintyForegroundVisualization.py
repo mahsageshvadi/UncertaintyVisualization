@@ -3,10 +3,15 @@ import slicer
 import vtk, ctk, qt
 
 class UncertaintyForegroundVisualization():
+
+    color_overlay_surgeon_centric_mask_margin = 10
+    FLICKER_INTERVAL_MS = 400
+    flicker_initial_threshold = 4
     def __init__(self, uncertaintyNode):
 
-        self.surgeonCentricMargin = 10
-        self.mask = self.shpere_mask(self.surgeonCentricMargin)
+        self.already_in_flicker = None
+        self.initialize_color_overlay_surgeon_centric()
+        self.initialize_flicker_mode()
         # Node to display uncertainty in this layer
         self.uncertaintyVISVolumeNode = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLScalarVolumeNode", 'Uncertainty_Foreground')
         v1 = slicer.util.getNode('ref_ref_t2')
@@ -16,24 +21,30 @@ class UncertaintyForegroundVisualization():
         self.uncertaintyNode = None
         # array for the main uncertainty
         self.uncertaintyArray = None
-        self.isSurgeonCentric = False
         self.lookupTable = None
         self.opacity = None
-        self.FLICKER_INTERVAL_MS = 400
-        self.flickerTimer = qt.QTimer()
-        self.flickerTimer.setInterval(self.FLICKER_INTERVAL_MS)
-        self.flickerTimer.timeout.connect(self.toggleFlicker)
+
         self.current_visibility = False
         self.initializeNodes(uncertaintyNode)
-        self.updateForegroundWithArray(self.uncertaintyArray)
+        self.update_foreground_with_uncertainty_array(self.uncertaintyArray)
         self.initiateUncertaintyVISVolumeNode()
-        self.displayNode =  self.uncertaintyVISVolumeNode.GetDisplayNode()
-        self.flickerIsOn = False
-        self.flickerThreshold = 4
-        self.alreadyInFlicker = False
+        self.displayNode = self.uncertaintyVISVolumeNode.GetDisplayNode()
 
-    def setFlickerThreshold(self, threshold):
-                    self.flickerThreshold = threshold/100
+
+    def initialize_color_overlay_surgeon_centric(self):
+        self.mask = self.shpere_mask(self.color_overlay_surgeon_centric_mask_margin)
+        self.is_color_overlay_surgeon_centric = False
+
+    def initialize_flicker_mode(self):
+
+        self.flicker_timer = qt.QTimer()
+        self.flicker_timer.setInterval(self.FLICKER_INTERVAL_MS)
+        # Connect the timer to toggle flicker
+        self.flicker_timer.timeout.connect(self.toggle_flicker)
+        self.flicker_is_enabled = False
+        self.flicker_threshold = self.flicker_initial_threshold
+        self.already_in_flicker = False
+
 
     def initiateUncertaintyVISVolumeNode(self):
 
@@ -51,28 +62,20 @@ class UncertaintyForegroundVisualization():
 
     def setSurgeonCentricMode(self, surgeonCentricMode):
 
-        self.isSurgeonCentric = surgeonCentricMode
+        self.is_color_overlay_surgeon_centric = surgeonCentricMode
 
+    def enable_color_overlay_foreground(self, is_checked):
 
-    def turnOff(self, isChecked):
-
-        if not isChecked:
-
+        if not is_checked:
             slicer.util.setSliceViewerLayers(foreground=self.uncertaintyVISVolumeNode, foregroundOpacity=0.0)
-
         else:
-
             slicer.util.setSliceViewerLayers(foreground=self.uncertaintyVISVolumeNode, foregroundOpacity=0.5)
 
+    def update_foreground_with_uncertainty_array(self, update_array):
 
-
-    def updateForegroundWithArray(self, update_array):
-
-        if self.isSurgeonCentric:
+        if self.is_color_overlay_surgeon_centric:
             update_array[~self.mask] = 0
-
         slicer.util.updateVolumeFromArray(self.uncertaintyVISVolumeNode, update_array)
-
 
     def shpere_mask(self, radius):
 
@@ -86,15 +89,13 @@ class UncertaintyForegroundVisualization():
 
         return mask
 
-
-
     def visualize(self, ras =  [1.0, 1.0, 1.0] ,point_Ijk = [0, 0, 0]):
 
-        if self.isSurgeonCentric:
+        if self.is_color_overlay_surgeon_centric:
             try:
 
                 uncertaintyArray_croped = self.surgeonCentricArrayCalculation(point_Ijk)
-                self.updateForegroundWithArray(uncertaintyArray_croped)
+                self.update_foreground_with_uncertainty_array(uncertaintyArray_croped)
                 slicer.util.setSliceViewerLayers(foreground=self.uncertaintyVISVolumeNode, foregroundOpacity=0.5)
 
                 self.uncertaintyVISVolumeNode.SetOrigin([ras[0]-(self.surgeonCentricMargin/2), ras[1]-(self.surgeonCentricMargin/2), ras[2]-(self.surgeonCentricMargin/2)])
@@ -105,10 +106,38 @@ class UncertaintyForegroundVisualization():
 
                 slicer.util.setSliceViewerLayers(foreground=self.uncertaintyVISVolumeNode, foregroundOpacity=0.0)
 
-                self.updateForegroundWithArray(self.uncertaintyArray)
+                self.update_foreground_with_uncertainty_array(self.uncertaintyArray)
                 self.uncertaintyVISVolumeNode.SetOrigin(self.origin)
 
-    def toggleFlicker(self):
+    def enable_flicker(self, is_checked):
+            self.flicker_is_enabled = is_checked
+            if not is_checked:
+                self.stop_flicker()
+
+    def perform_flicker(self, point_Ijk):
+        try:
+            if self.flicker_is_enabled:
+                if self.uncertaintyArray[point_Ijk[2]][point_Ijk[1]][point_Ijk[0]] > self.flicker_threshold:
+                    if not self.already_in_flicker:
+                        self.already_in_flicker = True
+                        self.start_flicker()
+                else:
+                    self.stop_flicker()
+                    self.already_in_flicker = False
+
+        except Exception as e:
+            pass
+    def start_flicker(self):
+        self.flicker_timer.start()
+
+    def stop_flicker(self):
+        self.flicker_timer.stop()
+       # slicer.util.setSliceViewerLayers(foreground=self.uncertaintyVISVolumeNode, foregroundOpacity=0.5)
+        self.current_visibility = False
+
+    #    self.uncertaintyVISVolumeNode.SetOrigin([ras[0]-(self.surgeonCentricMargin/2), ras[1]-(self.surgeonCentricMargin/2), ras[2]-(self.surgeonCentricMargin/2)])
+
+    def toggle_flicker(self):
 
 
             if not self.current_visibility:
@@ -118,42 +147,11 @@ class UncertaintyForegroundVisualization():
                 slicer.util.setSliceViewerLayers(foreground=self.uncertaintyVISVolumeNode, foregroundOpacity=0.0)
                 self.current_visibility = False
 
-    def startFlicker(self):
-        self.flickerTimer.start()
-
-    def stopFlicker(self):
-        self.flickerTimer.stop()
-       # slicer.util.setSliceViewerLayers(foreground=self.uncertaintyVISVolumeNode, foregroundOpacity=0.5)
-        self.current_visibility = False
-
-    #    self.uncertaintyVISVolumeNode.SetOrigin([ras[0]-(self.surgeonCentricMargin/2), ras[1]-(self.surgeonCentricMargin/2), ras[2]-(self.surgeonCentricMargin/2)])
+    def set_flicker_threshold(self, threshold):
+                    self.flicker_threshold = threshold / 100
 
 
 
-
-    def performFlicker(self, point_Ijk):
-
-            try:
-                if self.flickerIsOn:
-                    if self.uncertaintyArray[point_Ijk[2]][point_Ijk[1]][point_Ijk[0]] > self.flickerThreshold:
-                        if not self.alreadyInFlicker:
-                            self.alreadyInFlicker = True
-                            self.startFlicker()
-
-                    else:
-                        self.stopFlicker()
-                        self.alreadyInFlicker = False
-
-            except Exception as e:
-                pass
-
-
-
-    def showFlicker(self, isChecked):
-
-            self.flickerIsOn = isChecked
-            if not isChecked:
-                self.stopFlicker()
 
 
     def surgeonCentricArrayCalculation(self, point_Ijk):

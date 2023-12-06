@@ -177,7 +177,7 @@ class UVISWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
     
             self.currentFlickerhresholdValue = new_threshold
             self.flicker_slider_value_label.setText(str(new_threshold/100) + " mm")
-            self.logic.uncertaintyForeground.setFlickerThreshold(new_threshold)
+            self.logic.uncertaintyForeground.set_flicker_threshold(new_threshold)
 
     
   #  def bluriness_number_of_section_changed(self, index):
@@ -534,9 +534,6 @@ class UVISWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         surgeonCentricModeLayout.addWidget(self.surgeonCentricCheckBox, 0, 0, qt.Qt.AlignTop )
         self.foreGroundVolumeTab.setLayout(surgeonCentricModeLayout)
 
-
-
-
         self.audioCheckbox = qt.QCheckBox("Enable")
         self.audioCheckbox.toggled.connect(lambda:self.logic.audioModeSelected(self.audioCheckbox.isChecked()))
 
@@ -723,12 +720,12 @@ class UVISLogic(ScriptedLoadableModuleLogic):
 
     def turnVisualizationOff(self, isChecked):
 
-            self.uncertaintyForeground.turnOff(isChecked)
+            self.uncertaintyForeground.enable_color_overlay_foreground(isChecked)
             self.logic.colorLUT.applyColorMap()
 
     def flickerModeSelected(self, isChecked):
         
-        self.uncertaintyForeground.showFlicker(isChecked)
+        self.uncertaintyForeground.enable_flicker(isChecked)
         
         if isChecked:
             if  self.numberOfActiveOnMouseMoveAtts == 0:
@@ -838,7 +835,7 @@ class UVISLogic(ScriptedLoadableModuleLogic):
         self.markupVis.moveMarkup(ras, point_Ijk)
 
         self.uncertaintyForeground.visualize(ras, point_Ijk)
-        if self.uncertaintyForeground.isSurgeonCentric:
+        if self.uncertaintyForeground.is_color_overlay_surgeon_centric:
             if self.colorLUT.colorTableForSurgeonCentric is not None:
                     
                     self.uncertaintyForeground.displayNode.AutoWindowLevelOff()
@@ -849,7 +846,7 @@ class UVISLogic(ScriptedLoadableModuleLogic):
             
         self.audioMode.performAudioMode(point_Ijk)
 
-        self.uncertaintyForeground.performFlicker(point_Ijk)
+        self.uncertaintyForeground.perform_flicker(point_Ijk)
 
 
 
