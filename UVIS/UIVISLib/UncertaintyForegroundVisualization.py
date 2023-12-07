@@ -6,6 +6,7 @@ class UncertaintyForegroundVisualization():
 
     color_overlay_surgeon_centric_mask_margin = 10
     FLICKER_INTERVAL_MS = 400
+    #todo Sync this with the slider value
     flicker_initial_threshold = 4
     def __init__(self, uncertaintyNode):
 
@@ -109,15 +110,15 @@ class UncertaintyForegroundVisualization():
                 self.update_foreground_with_uncertainty_array(self.uncertaintyArray)
                 self.uncertaintyVISVolumeNode.SetOrigin(self.origin)
 
-    def enable_flicker(self, is_checked):
+    def enable_disable_flicker_mode(self, is_checked):
             self.flicker_is_enabled = is_checked
             if not is_checked:
                 self.stop_flicker()
 
-    def perform_flicker(self, point_Ijk):
+    def perform_flicker_if_uncertainty_more_than_threshold(self, point_Ijk):
         try:
             if self.flicker_is_enabled:
-                if self.uncertaintyArray[point_Ijk[2]][point_Ijk[1]][point_Ijk[0]] > self.flicker_threshold:
+                if round(self.uncertaintyArray[point_Ijk[2]][point_Ijk[1]][point_Ijk[0]]) > self.flicker_threshold:
                     if not self.already_in_flicker:
                         self.already_in_flicker = True
                         self.start_flicker()
@@ -127,6 +128,8 @@ class UncertaintyForegroundVisualization():
 
         except Exception as e:
             pass
+
+    # triger toggle flicker with timer
     def start_flicker(self):
         self.flicker_timer.start()
 
@@ -139,7 +142,6 @@ class UncertaintyForegroundVisualization():
 
     def toggle_flicker(self):
 
-
             if not self.current_visibility:
                 slicer.util.setSliceViewerLayers(foreground=self.uncertaintyVISVolumeNode, foregroundOpacity=0.4)
                 self.current_visibility = True
@@ -147,8 +149,8 @@ class UncertaintyForegroundVisualization():
                 slicer.util.setSliceViewerLayers(foreground=self.uncertaintyVISVolumeNode, foregroundOpacity=0.0)
                 self.current_visibility = False
 
-    def set_flicker_threshold(self, threshold):
-                    self.flicker_threshold = threshold / 100
+    def change_flicker_threshold(self, threshold):
+                    self.flicker_threshold = round(threshold / 100)
 
 
 
@@ -185,9 +187,7 @@ class UncertaintyForegroundVisualization():
 
         return uncertaintyArray_croped
 
-
     def apply_threshold(self, threshold):
-
             self.displayNode.SetApplyThreshold(1)
             self.displayNode.SetLowerThreshold(threshold)
 

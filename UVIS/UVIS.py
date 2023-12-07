@@ -174,10 +174,9 @@ class UVISWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
             self.logic.audioMode.setThreshold(new_threshold)
             
     def flicker_threshold_changed(self, new_threshold):
-    
-            self.currentFlickerhresholdValue = new_threshold
-            self.flicker_slider_value_label.setText(str(new_threshold/100) + " mm")
-            self.logic.uncertaintyForeground.set_flicker_threshold(new_threshold)
+
+            self.flicker_slider_value_label.setText(str(round(new_threshold/100)) + " mm")
+            self.logic.uncertaintyForeground.change_flicker_threshold(new_threshold)
 
     
   #  def bluriness_number_of_section_changed(self, index):
@@ -570,7 +569,7 @@ class UVISWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         self.flicker_threshold_slider.setFixedSize(200, 30)
         self.flicker_threshold_slider.setValue(self.currentFlickerThresholdValue)
         
-        self.flicker_slider_value_label = qt.QLabel(str(self.currentFlickerThresholdValue/10) + " mm")
+        self.flicker_slider_value_label = qt.QLabel(str(round(self.currentFlickerThresholdValue/10)) + " mm")
 
         flickerModeLayout = qt.QGridLayout()
         flickerModeLayout.addWidget(self.flickerCheckbox, 0, 0, qt.Qt.AlignTop)
@@ -725,7 +724,7 @@ class UVISLogic(ScriptedLoadableModuleLogic):
 
     def flickerModeSelected(self, isChecked):
         
-        self.uncertaintyForeground.enable_flicker(isChecked)
+        self.uncertaintyForeground.enable_disable_flicker_mode(isChecked)
         
         if isChecked:
             if  self.numberOfActiveOnMouseMoveAtts == 0:
@@ -846,7 +845,7 @@ class UVISLogic(ScriptedLoadableModuleLogic):
             
         self.audioMode.performAudioMode(point_Ijk)
 
-        self.uncertaintyForeground.perform_flicker(point_Ijk)
+        self.uncertaintyForeground.perform_flicker_if_uncertainty_more_than_threshold(point_Ijk)
 
 
 
