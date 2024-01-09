@@ -1,15 +1,17 @@
-Uncertainty Visualization Tool
-Overview
-This tool is designed for visualizing 3D uncertainty quantification values, offering a range of visualization techniques to suit different needs.
+# Uncertainty Visualization Tool
 
-Features
-Compatible with 3D uncertainty data.
-Includes various filters like Noise, Blur, and Transparency for enhanced visualization.
-Interactive mining game for evaluating visualization methods.
-Getting Started
-Load 3D Uncertainty Data: Essential for the tool's functionality.
-Adjust Filters: Experiment with filter levels for optimal visualization.
-Explore Visualizations: Use the mining game to determine the most effective visualization technique.
-Why Choose This Tool?
-Customizable and user-friendly.
-Innovative approach to data visualization.
+## Overview
+The Uncertainty Visualization Tool is designed for effectively visualizing 3D uncertainty quantification values. It offers various visualization techniques and settings, ensuring compatibility with diverse user requirements.
+
+## Features
+- **3D Data Compatibility**: Works exclusively with 3D uncertainty values.
+- **Customizable Filters**: Includes Noise, Blur, and Transparency filters for tailored visualizations.
+- **Interactive Mining Game**: A unique feature for evaluating and comparing visualization methods.
+
+## Getting Started
+1. **Load Your Data**: Import your 3D uncertainty data into the tool.
+2. **Adjust Filter Settings**: Fine-tune Noise, Blur, and Transparency levels for the best visual output.
+3. **Visualization Exploration**: Use the integrated mining game to assess the effectiveness of different visualization techniques.
+
+
+
