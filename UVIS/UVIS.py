@@ -95,7 +95,7 @@ class UVISWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
             self.slider_setup_based_on_uncertainty_value(self.color_overlay_slider_control,
                                                          self.uncertaintyArray.min(),
                                                          self.uncertaintyArray.max() + 1,
-                                                         self.apply_threshold_for_color_overlay)
+                                                         self.apply_initial_threshold_for_color_overlay)
 
             self.slider_setup_based_on_uncertainty_value(self.sigma_slider,
                                                          UIVISLib.utils.get_filter_levels()[0],
@@ -120,8 +120,8 @@ class UVISWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
                                                          self.flicker_threshold_changed,
                                                          self.currentFlickerThresholdValue * 10)
 
-            self.cursorType.currentIndexChanged.connect(self.logic.onCursorchanged)
-            self.changeFilterType.currentIndexChanged.connect(self.onFilterChanged)
+            self.cursorType.currentIndexChanged.connect(self.logic.on_cursor_changed)
+            self.changeFilterType.currentIndexChanged.connect(self.on_filter_type_changed)
 
     def slider_setup_based_on_uncertainty_value(self, slider, min, max, value_Changed=None, value=None):
 
@@ -159,16 +159,21 @@ class UVISWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
 
     # Color overlay  functions
 
-    def apply_threshold_for_color_overlay(self, value):
+    def apply_initial_threshold_for_color_overlay(self, value):
 
-        self.logic.uncertaintyForeground.apply_threshold_for_color_overlay_display(value)
+        self.logic.uncertaintyForeground.apply_initial_threshold_for_color_overlay_display(value)
         self.mm_label_for_color_overlay.setText(f"{value} mm")
 
-    # Tumor based funtions
+    def reset_colormap_selected(self):
+        self.logic.colorLUT.resetLUTTogrey()
+        self.color_overlay_slider_control.setValue(self.uncertaintyArray.min())
+
+    # Tumor based functions
     def change_model_opacity(self, TumorOffsets, opacity):
 
         self.logic.tumorBasedViS.change_opacity_for_tumor_boundries(Button, opacity)
 
+    # filter based functions
     def filter_level_changed(self, filter_level):
 
         self.current_filter_level = filter_level
@@ -180,6 +185,16 @@ class UVISWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         self.logic.filter_threshold_changed(filter_threshold)
         self.slider_value_label.setText(f"{filter_threshold} mm")
 
+    def filter_mode_selected(self, in_checked):
+
+        if in_checked:
+
+            self.logic.backgroundModifiedVisualization.visualizeFilteredBackground()
+        else:
+
+            self.logic.backgroundModifiedVisualization.turnBluredVisualizationOff()
+
+    # surgeon centric functions
     def audio_threshold_changed(self, new_threshold):
 
         self.currentAudioThresholdValue = new_threshold
@@ -196,31 +211,11 @@ class UVISWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
     #  self.currentBlurinessIndex = index
     #  self.logic.blurinessNumberOfSectionChanged(index = index, blurinessIntencity= self.currentBlurinesssigma/300, notBlureddUncertaintyIncrease =self.currentBlurinessBorderValue/100)
 
-    def filterModeSelected(self, inChecked):
+    def tumor_based_mode_selected(self, in_checked):
 
-        if inChecked:
+        self.logic.tumorBasedViS.enable_tumorVIS(in_checked)
 
-            self.logic.backgroundModifiedVisualization.visualizeFilteredBackground()
-        else:
-
-            self.logic.backgroundModifiedVisualization.turnBluredVisualizationOff()
-
-    def tumorBasedModeSelected(self, inChecked):
-
-        self.logic.tumorBasedViS.enable_tumorVIS(inChecked)
-
-    def handle_combo_box(self, index):
-        selected_item = self.combo_box.itemText(index)
-
-        if selected_item == "Two Color Gradient":
-            self.color_button_2.setVisible(True)
-            self.logic.colorLUT.oneColor = False
-        else:
-            self.logic.colorLUT.resetColors()
-            self.color_button_2.setVisible(False)
-            self.logic.colorLUT.oneColor = True
-
-    def onFilterChanged(self, index):
+    def on_filter_type_changed(self, index):
 
         filterType = ""
         if index == 0:
@@ -231,15 +226,11 @@ class UVISWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
             filterType = "Light"
 
         self.logic.backgroundModifiedVisualization.setFilterType(filterType)
-        self.logic.blurinessNumberOfSectionChanged(index=self.currentBlurinessIndex,
-                                                   blurinessIntencity=self.current_filter_level / 300,
-                                                   notBlureddUncertaintyIncrease=self.current_filter_threshold_changed / 100)
+        self.logic.bluriness_number_of_section_changed(index=self.currentBlurinessIndex,
+                                                       blurriness_intercity=self.current_filter_level / 300,
+                                                       not_bluredd_uncertainty_increase=self.current_filter_threshold_changed / 100)
 
-    def resetColormapSelected(self):
-        self.logic.colorLUT.resetLUTTogrey()
-        self.color_overlay_slider_control.setValue(self.uncertaintyArray.min())
-
-    def on_spinbox_value_changed(self, Button, value):
+    def on_line_thickness_changed(self, Button, value):
 
         self.logic.tumorBasedViS.set_line_width(Button, value)
 
@@ -295,7 +286,7 @@ class UVISWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
 
         self.selectFilterCheckkBox = qt.QCheckBox("Enable")
         self.selectFilterCheckkBox.toggled.connect(
-            lambda: self.filterModeSelected(self.selectFilterCheckkBox.isChecked()))
+            lambda: self.filter_mode_selected(self.selectFilterCheckkBox.isChecked()))
 
         filter_Layout.addWidget(blurinessLevelSliderLabel, 1, 0)
         filter_Layout.addWidget(self.changeFilterType, 2, 2, qt.Qt.AlignRight)
@@ -321,7 +312,7 @@ class UVISWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
 
         self.selectTumorbasedCheckbox = qt.QCheckBox("Enable")
         self.selectTumorbasedCheckbox.toggled.connect(
-            lambda: self.tumorBasedModeSelected(self.selectTumorbasedCheckbox.isChecked()))
+            lambda: self.tumor_based_mode_selected(self.selectTumorbasedCheckbox.isChecked()))
 
         self.bigger_uncertainty_slider = qt.QSlider(qt.Qt.Horizontal)
         self.bigger_uncertainty_slider.setFocusPolicy(qt.Qt.StrongFocus)
@@ -337,22 +328,22 @@ class UVISWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         self.color_button_tumorbased.setFixedSize(50, 30)
         self.color_button_tumorbased.clicked.connect(lambda: self.open_color_picker(TumorOffsets.TumorBigger))
 
-        self.spin_box_label_bigger = qt.QLabel("Line Thickness: ")
+        self.line_thickness_for_bigger_offset_label = qt.QLabel("Line Thickness: ")
 
-        self.spin_box_bigger = qt.QSpinBox()
-        self.spin_box_bigger.setRange(0, 20)
-        self.spin_box_bigger.setValue(2)
-        self.spin_box_bigger.setSingleStep(1)
-        self.spin_box_bigger.valueChanged.connect(
-            lambda value: self.on_spinbox_value_changed(TumorOffsets.TumorBigger, value))
+        self.line_thickneess_for_bigger_offset = qt.QSpinBox()
+        self.line_thickneess_for_bigger_offset.setRange(0, 20)
+        self.line_thickneess_for_bigger_offset.setValue(2)
+        self.line_thickneess_for_bigger_offset.setSingleStep(1)
+        self.line_thickneess_for_bigger_offset.valueChanged.connect(
+            lambda value: self.on_line_thickness_changed(TumorOffsets.TumorBigger, value))
 
         tumorBasedLayout.addWidget(self.selectTumorbasedCheckbox, 0, 0)
         tumorBasedLayout.addWidget(self.bigger_uncertainty_slider_label, 1, 0)
         tumorBasedLayout.addWidget(self.opacity_label, 2, 0, qt.Qt.AlignRight)
         tumorBasedLayout.addWidget(self.bigger_uncertainty_slider, 2, 1, qt.Qt.AlignLeft)
         tumorBasedLayout.addWidget(self.color_button_tumorbased, 2, 2)
-        tumorBasedLayout.addWidget(self.spin_box_label_bigger, 2, 3, qt.Qt.AlignRight)
-        tumorBasedLayout.addWidget(self.spin_box_bigger, 2, 4, qt.Qt.AlignRight)
+        tumorBasedLayout.addWidget(self.line_thickness_for_bigger_offset_label, 2, 3, qt.Qt.AlignRight)
+        tumorBasedLayout.addWidget(self.line_thickneess_for_bigger_offset, 2, 4, qt.Qt.AlignRight)
 
         self.tumor_based_uncertainty_slider = qt.QSlider(qt.Qt.Horizontal)
         self.tumor_based_uncertainty_slider.setFocusPolicy(qt.Qt.StrongFocus)
@@ -375,7 +366,7 @@ class UVISWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         self.spin_box_tumor.setRange(0, 20)
         self.spin_box_tumor.setValue(2)
         self.spin_box_tumor.setSingleStep(1)
-        self.spin_box_tumor.valueChanged.connect(lambda value: self.on_spinbox_value_changed(TumorOffsets.Tumor, value))
+        self.spin_box_tumor.valueChanged.connect(lambda value: self.on_line_thickness_changed(TumorOffsets.Tumor, value))
 
         tumorBasedLayout.addWidget(self.tumor_based_uncertainty_slider_label, 3, 0)
         tumorBasedLayout.addWidget(self.opacity_label_tumor, 4, 0, qt.Qt.AlignRight)
@@ -406,7 +397,7 @@ class UVISWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         self.spin_box_smaller.setValue(2)
         self.spin_box_smaller.setSingleStep(1)
         self.spin_box_smaller.valueChanged.connect(
-            lambda value: self.on_spinbox_value_changed(TumorOffsets.TumorSmaller, value))
+            lambda value: self.on_line_thickness_changed(TumorOffsets.TumorSmaller, value))
 
         tumorBasedLayout.addWidget(self.smaller_uncertainty_slider_label, 5, 0)
         tumorBasedLayout.addWidget(self.opacity_label_smaller, 6, 0, qt.Qt.AlignRight)
@@ -431,7 +422,7 @@ class UVISWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         self.foreGroundVISTabs.addTab(self.colorTab, "Color")
 
         onOffVis = qt.QCheckBox("Enable")
-        onOffVis.toggled.connect(lambda: self.logic.turnVisualizationOff(onOffVis.isChecked()))
+        onOffVis.toggled.connect(lambda: self.logic.turn_visualization_off(onOffVis.isChecked()))
 
         self.color_button = qt.QPushButton("Select First Color")
         self.color_button.setFixedSize(130, 30)
@@ -442,17 +433,17 @@ class UVISWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         self.color_button_2.setFixedSize(130, 30)
         self.color_button_2.clicked.connect(lambda: self.open_color_picker(Button.Two))
 
-        self.combo_box = qt.QComboBox()
-        self.combo_box.addItem("Two Color Gradient")
-        self.combo_box.addItem("One Color Gradient")
-        self.combo_box.setCurrentIndex(0)
-        self.combo_box.currentIndexChanged.connect(self.handle_combo_box)
+        self.select_color_overlay_two_one_color = qt.QComboBox()
+        self.select_color_overlay_two_one_color.addItem("Two Color Gradient")
+        self.select_color_overlay_two_one_color.addItem("One Color Gradient")
+        self.select_color_overlay_two_one_color.setCurrentIndex(0)
+        self.select_color_overlay_two_one_color.currentIndexChanged.connect(self.color_overlay_two_one_changed)
 
         self.reset_button = qt.QPushButton("Reset")
         self.reset_button.setFixedSize(50, 30)
         self.binary_CheckBox = qt.QCheckBox("Binary Colors")
         self.binary_CheckBox.toggled.connect(lambda: self.select_binary_color_map(self.binary_CheckBox.isChecked()))
-        self.reset_button.connect('clicked()', self.resetColormapSelected)
+        self.reset_button.connect('clicked()', self.reset_colormap_selected)
 
         self.color_overlay_slider_control = qt.QSlider(qt.Qt.Horizontal)
         self.color_overlay_slider_control.setFocusPolicy(qt.Qt.StrongFocus)
@@ -464,7 +455,7 @@ class UVISWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         colortModeLayout.addWidget(onOffVis, 0, 0, qt.Qt.AlignLeft)
         colortModeLayout.addWidget(self.color_button, 1, 0, qt.Qt.AlignLeft)
         colortModeLayout.addWidget(self.color_button_2, 2, 0, qt.Qt.AlignLeft)
-        colortModeLayout.addWidget(self.combo_box, 1, 2, qt.Qt.AlignRight)
+        colortModeLayout.addWidget(self.select_color_overlay_two_one_color, 1, 2, qt.Qt.AlignRight)
         colortModeLayout.addWidget(self.reset_button, 2, 2, qt.Qt.AlignRight)
         colortModeLayout.addWidget(self.binary_CheckBox, 1, 1)
         slider_layout_color = qt.QHBoxLayout()
@@ -498,7 +489,7 @@ class UVISWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         self.surgoenCentricTabs.addTab(self.fliCkerTab, "Flicker")
 
         self.turnOnCheckBox = qt.QCheckBox("Enable")
-        self.turnOnCheckBox.toggled.connect(lambda: self.logic.textModeSelected(self.turnOnCheckBox.isChecked()))
+        self.turnOnCheckBox.toggled.connect(lambda: self.logic.text_mode_selected(self.turnOnCheckBox.isChecked()))
 
         self.cursorTypeText = qt.QLabel("Cursor Type:")
 
@@ -529,13 +520,13 @@ class UVISWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         self.foreGroundVolumeTab.setLayout(surgeonCentricModeLayout)
 
         self.audioCheckbox = qt.QCheckBox("Enable")
-        self.audioCheckbox.toggled.connect(lambda: self.logic.audioModeSelected(self.audioCheckbox.isChecked()))
+        self.audioCheckbox.toggled.connect(lambda: self.logic.audio_mode_selected(self.audioCheckbox.isChecked()))
 
         self.audioDropdown = qt.QComboBox()
         audio_options = ["Beep 1", "Beep 2", "Don't trust"]
         self.audioDropdown.setFixedSize(100, 30)
         self.audioDropdown.addItems(audio_options)
-        self.audioDropdown.currentIndexChanged.connect(self.logic.onAudioOptionSelected)
+        self.audioDropdown.currentIndexChanged.connect(self.logic.on_audio_option_selected)
 
         self.audio_threshold_slider = qt.QSlider(qt.Qt.Horizontal)
         self.audio_threshold_slider.setFocusPolicy(qt.Qt.StrongFocus)
@@ -553,7 +544,7 @@ class UVISWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         self.audioTab.setLayout(audioModeLayout)
 
         self.flickerCheckbox = qt.QCheckBox("Enable")
-        self.flickerCheckbox.toggled.connect(lambda: self.logic.flickerModeSelected(self.flickerCheckbox.isChecked()))
+        self.flickerCheckbox.toggled.connect(lambda: self.logic.flicker_mode_selected(self.flickerCheckbox.isChecked()))
 
         self.flicker_threshold_slider = qt.QSlider(qt.Qt.Horizontal)
         self.flicker_threshold_slider.setFocusPolicy(qt.Qt.StrongFocus)
@@ -681,7 +672,7 @@ class UVISLogic(ScriptedLoadableModuleLogic):
             # self.uncertaintyForeground.turnOff(True)
             if self.numberOfActiveOnMouseMoveAtts == 0:
                 self.id = self.crosshairNode.AddObserver(slicer.vtkMRMLCrosshairNode.CursorPositionModifiedEvent,
-                                                         self.onMouseMoved)
+                                                         self.on_mouse_moved)
             self.numberOfActiveOnMouseMoveAtts += 1
         else:
 
@@ -693,19 +684,19 @@ class UVISLogic(ScriptedLoadableModuleLogic):
 
             self.uncertaintyForeground.visualize()
 
-    def turnVisualizationOff(self, isChecked):
+    def turn_visualization_off(self, isChecked):
 
         self.uncertaintyForeground.enable_color_overlay_foreground(isChecked)
         self.logic.colorLUT.applyColorMap()
 
-    def flickerModeSelected(self, isChecked):
+    def flicker_mode_selected(self, isChecked):
 
         self.uncertaintyForeground.enable_disable_flicker_mode(isChecked)
 
         if isChecked:
             if self.numberOfActiveOnMouseMoveAtts == 0:
                 self.id = self.crosshairNode.AddObserver(slicer.vtkMRMLCrosshairNode.CursorPositionModifiedEvent,
-                                                         self.onMouseMoved)
+                                                         self.on_mouse_moved)
             self.numberOfActiveOnMouseMoveAtts += 1
 
         else:
@@ -714,14 +705,14 @@ class UVISLogic(ScriptedLoadableModuleLogic):
             if self.numberOfActiveOnMouseMoveAtts == 0:
                 self.crosshairNode.RemoveObserver(self.id)
 
-    def textModeSelected(self, inChecked):
+    def text_mode_selected(self, in_checked):
 
-        self.markupVis.showMarkup(inChecked)
+        self.markupVis.showMarkup(in_checked)
 
-        if inChecked:
+        if in_checked:
             if self.numberOfActiveOnMouseMoveAtts == 0:
                 self.id = self.crosshairNode.AddObserver(slicer.vtkMRMLCrosshairNode.CursorPositionModifiedEvent,
-                                                         self.onMouseMoved)
+                                                         self.on_mouse_moved)
             self.numberOfActiveOnMouseMoveAtts += 1
 
         else:
@@ -730,15 +721,15 @@ class UVISLogic(ScriptedLoadableModuleLogic):
             if self.numberOfActiveOnMouseMoveAtts == 0:
                 self.crosshairNode.RemoveObserver(self.id)
 
-    def audioModeSelected(self, isChecked):
+    def audio_mode_selected(self, is_checked):
 
-        self.audioMode.turnOnAudioMode(isChecked)
+        self.audioMode.turnOnAudioMode(is_checked)
 
-        if isChecked:
+        if is_checked:
 
             if self.numberOfActiveOnMouseMoveAtts == 0:
                 self.id = self.crosshairNode.AddObserver(slicer.vtkMRMLCrosshairNode.CursorPositionModifiedEvent,
-                                                         self.onMouseMoved)
+                                                         self.on_mouse_moved)
             self.numberOfActiveOnMouseMoveAtts += 1
 
         else:
@@ -755,43 +746,43 @@ class UVISLogic(ScriptedLoadableModuleLogic):
     #   else:
     #          self.uncertaintyForeground.stopFlicker()
 
-    def onAudioOptionSelected(self, index):
+    def on_audio_option_selected(self, index):
 
         self.audioMode.setAudioFile(index)
 
-    def onCursorchanged(self, index):
+    def on_cursor_changed(self, index):
 
         if index == 4 or index == 5:
             index += 1
 
         self.markupVis.changeGlyphType(index + 1)
 
-    def blurinessNumberOfSectionChanged(self, index, blurinessIntencity=1, notBlureddUncertaintyIncrease=0):
+    def bluriness_number_of_section_changed(self, index, blurriness_intercity=1, not_bluredd_uncertainty_increase=0):
 
-        currentNumberofSections = index + 2
+        current_number_of_sections = index + 2
         sigmas = []
-        uncertaintyBorders = []
+        uncertainty_borders = []
         test = []
-        uncertaintyrange = self.uncertaintyArray.max() - self.uncertaintyArray.min()
-        uncertaintysectionsValue = uncertaintyrange / currentNumberofSections
-        uncertaintyrangeWithNotBluredIncreased = uncertaintyrange - notBlureddUncertaintyIncrease
-        uncertaintysectionsValueWithNotBluredIncreased = uncertaintyrangeWithNotBluredIncreased / (
-                currentNumberofSections - 1)
+        uncertainty_range = self.uncertaintyArray.max() - self.uncertaintyArray.min()
+        uncertainty_sections_value = uncertainty_range / current_number_of_sections
+        uncertainty_range_with_not_blured_increased = uncertainty_range - not_bluredd_uncertainty_increase
+        uncertainty_sections_value_with_not_blured_increased = uncertainty_range_with_not_blured_increased / (
+                current_number_of_sections - 1)
 
-        for i in range(currentNumberofSections):
+        for i in range(current_number_of_sections):
 
-            sigmas.append(i * uncertaintysectionsValue * blurinessIntencity)
+            sigmas.append(i * uncertainty_sections_value * blurriness_intercity)
 
-            if i != currentNumberofSections:
+            if i != current_number_of_sections:
                 if i == 0:
-                    uncertaintyBorders.append(self.uncertaintyArray.min())
+                    uncertainty_borders.append(self.uncertaintyArray.min())
                 else:
-                    uncertaintyBorders.append(
-                        notBlureddUncertaintyIncrease + uncertaintysectionsValueWithNotBluredIncreased * (i - 1))
+                    uncertainty_borders.append(
+                        not_bluredd_uncertainty_increase + uncertainty_sections_value_with_not_blured_increased * (i - 1))
 
-        uncertaintyBorders.append(self.uncertaintyArray.max())
-        self.backgroundModifiedVisualization.visualizeFilteredBackground(sigmas, uncertaintyBorders,
-                                                                         currentNumberofSections)
+        uncertainty_borders.append(self.uncertaintyArray.max())
+        self.backgroundModifiedVisualization.visualizeFilteredBackground(sigmas, uncertainty_borders,
+                                                                         current_number_of_sections)
 
     def filter_level_changed(self, filter_level):
         self.backgroundModifiedVisualization.filter_level_changed(filter_level)
@@ -799,7 +790,7 @@ class UVISLogic(ScriptedLoadableModuleLogic):
     def filter_threshold_changed(self, filter_threshold):
         self.backgroundModifiedVisualization.filter_threshold_changed(filter_threshold)
 
-    def onMouseMoved(self, observer, eventid):
+    def on_mouse_moved(self, observer, eventid):
         ras = [1.0, 1.0, 1.0]
         self.crosshairNode.GetCursorPositionRAS(ras)
 
