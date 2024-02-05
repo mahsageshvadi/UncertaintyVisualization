@@ -8,7 +8,7 @@ userSeesGoldKaleVolumeTemp = userSeesGoldKaleVolume.copy()
 goldKaleSize = userSeesGoldKaleVolume.shape
 
 
-userSeesMapVolume = userSeesVolume.copy()
+userSeesMapVolume = userSeesGoldKaleVolume.copy()
 
 userSeesMapVolume = np.where(userSeesMapVolume == 255, 1, -1)
 
@@ -28,8 +28,8 @@ totalScoreTextNode.SetName("totalScoreTextNode")
 totalScoreTextNode.AddControlPoint([0,0,0])
 totalScoreTextNode.GetDisplayNode().SetUseGlyphScale(0)
 totalScoreTextNode.GetDisplayNode().SetGlyphType(3)
-totalScoreTextNode.GetDisplayNode().SetSelectedColor(0,0,0)
-totalScoreTextNode.GetDisplayNode().SetActiveColor(0,0,0)
+totalScoreTextNode.GetDisplayNode().SetSelectedColor(0.5,0.5,0.5)
+totalScoreTextNode.GetDisplayNode().SetActiveColor(0.5,0.5,0.5)
 totalScoreTextNode.GetDisplayNode().SetTextScale(3.5)
 totalScoreTextNode.SetNthControlPointLabel(0, "$ 0")
 totalScoreTextNode.SetNthControlPointPosition(0, -2900, -950, 0)
@@ -41,8 +41,8 @@ scoreTextNode.SetName("scoreTextNode")
 scoreTextNode.AddControlPoint([0,0,0])
 #scoreTextNode.SetDisplayVisibility(False)
 scoreTextNode.GetDisplayNode().SetGlyphType(6)
-scoreTextNode.GetDisplayNode().SetSelectedColor(0,0,0)
-scoreTextNode.GetDisplayNode().SetActiveColor(0,0,0)
+scoreTextNode.GetDisplayNode().SetSelectedColor(0.5,0.5,0.5)
+scoreTextNode.GetDisplayNode().SetActiveColor(0.5,0.5,0.5)
 scoreTextNode.GetDisplayNode().SetTextScale(4)
 scoreTextNode.GetDisplayNode().SetOpacity(0.7)
 scoreTextNode.GetDisplayNode().SetGlyphSize(4)
@@ -54,8 +54,8 @@ uncertaintyTextNode.SetName("UncertaintyTextNode")
 uncertaintyTextNode.AddControlPoint([0,0,0])
 uncertaintyTextNode.SetDisplayVisibility(False)
 uncertaintyTextNode.GetDisplayNode().SetGlyphType(6)
-uncertaintyTextNode.GetDisplayNode().SetSelectedColor(0,1,0)
-uncertaintyTextNode.GetDisplayNode().SetActiveColor(0,1,0)
+uncertaintyTextNode.GetDisplayNode().SetSelectedColor(0.5,0.5,0.5)
+uncertaintyTextNode.GetDisplayNode().SetActiveColor(0.5,0.5,0.5)
 uncertaintyTextNode.GetDisplayNode().SetTextScale(4)
 uncertaintyTextNode.GetDisplayNode().SetOpacity(0.7)
 uncertaintyTextNode.GetDisplayNode().SetGlyphSize(4)
@@ -108,8 +108,8 @@ def onMouseMoved(observer, eventid):
                             scoreTextNode.GetDisplayNode().SetActiveColor(1, 0, 0)
                         else:
                             scoreTextNode.GetDisplayNode().SetTextScale(4)
-                            scoreTextNode.GetDisplayNode().SetSelectedColor(0, 0, 0)
-                            scoreTextNode.GetDisplayNode().SetActiveColor(0, 0, 0)
+                            scoreTextNode.GetDisplayNode().SetSelectedColor(0.5,0.5,0.5)
+                            scoreTextNode.GetDisplayNode().SetActiveColor(0.5,0.5,0.5)
 
                         if isGainingScoreStarted:
                             score += tempScore

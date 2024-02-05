@@ -74,26 +74,26 @@ for i in range(number_of_variations):
 
     angle_difference = np.random.randint(0, 30)
     angle2 = list_of_angles[0] + angle_difference
-    center2 = (list_of_ceters[0][0], list_of_ceters[0][1] + np.random.randint(0, 10))
+    center2 = (list_of_ceters[0][0], list_of_ceters[0][1] + np.random.randint(-5, 5))
     axesLength2 = list_of_axesLength[0]
     cv2.ellipse(ovalImage2, center2, axesLength2, angle2, 0, 360, (255, 255, 255), -1)
 
     angle_difference = np.random.randint(0, 30)
     angle2 = list_of_angles[1] + angle_difference
-    center2 = (list_of_ceters[1][0], list_of_ceters[1][1] + np.random.randint(0, 10))
+    center2 = (list_of_ceters[1][0], list_of_ceters[1][1] + np.random.randint(-5, 5))
     axesLength2 = list_of_axesLength[1]
     cv2.ellipse(ovalImage2, center2, axesLength2, angle2, 0, 360, (255, 255, 255), -1)
 
     angle_difference = np.random.randint(0, 30)
     angle2 = list_of_angles[2]+ angle_difference
-    center2 =  (list_of_ceters[2][0], list_of_ceters[2][1] + np.random.randint(0, 10))
+    center2 =  (list_of_ceters[2][0], list_of_ceters[2][1] + np.random.randint(-5, 5))
     axesLength2 = list_of_axesLength[2]
     cv2.ellipse(ovalImage2, center2, axesLength2, angle2, 0, 360, (255, 255, 255), -1)
 
 
     angle_difference = np.random.randint(0, 30)
     angle2 = list_of_angles[3]+ angle_difference
-    center2 = (list_of_ceters[3][0], list_of_ceters[3][1] + np.random.randint(0, 10))
+    center2 = (list_of_ceters[3][0], list_of_ceters[3][1] + np.random.randint(-5, 5))
     axesLength2 = list_of_axesLength[3]
     cv2.ellipse(ovalImage2, center2, axesLength2, angle2, 0, 360, (255, 255, 255), -1)
 
@@ -143,12 +143,16 @@ for i in range(len(list_of_variation_volumes)):
 
 diff_stack = np.array(diff_list)
 uncertainty_variance = np.var(diff_stack, axis=0)
-
 updateVolumeFromArray(uncertaintyNode, uncertainty_variance)
+
+
 
 #max_offset_node = slicer.mrmlScene.AddNewNodeByClass('vtkMRMLScalarVolumeNode')
 #max_offset_node.SetName("MaxOffset")
 updateVolumeFromArray(max_offset_node, max_offset_volume)
+
+min_offset_volume = np.logical_and(min_offset_volume == 255, ovalImage == 255).astype(np.uint8) * 255
+
 
 #min_offset_node = slicer.mrmlScene.AddNewNodeByClass('vtkMRMLScalarVolumeNode')
 #min_offset_node.SetName("MinOffset")

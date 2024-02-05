@@ -187,7 +187,7 @@ class UncertaintyForegroundVisualization():
 
         return uncertaintyArray_croped
 
-    def apply_threshold(self, threshold):
+    def apply_threshold_for_color_overlay_display(self, threshold):
             self.displayNode.SetApplyThreshold(1)
             self.displayNode.SetLowerThreshold(threshold)
 

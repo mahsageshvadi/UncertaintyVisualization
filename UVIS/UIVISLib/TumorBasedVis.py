@@ -123,7 +123,7 @@ class TumorBasedVis():
             slicer.app.processEvents()
 
 
-    def change_opacity(self, Button, opacity):
+    def change_opacity_for_tumor_boundries(self, Button, opacity):
 
         if Button == Button.TumorBigger:
 
