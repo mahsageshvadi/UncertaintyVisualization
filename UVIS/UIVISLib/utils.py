@@ -1,9 +1,12 @@
 import slicer
 import re
 
+
+
 _Extention_name = 'UVIS'
 _filter_types = ['Light', 'Noise', 'Blur']
 
+_volume_size_for_the_game = 300
 #
 _filter_levels = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 
@@ -38,3 +41,6 @@ def get_project_root():
     last_slash_index = project_main_file_path.rfind('/')
 
     return project_main_file_path[:last_slash_index + 1]
+def get_volume_size_for_the_game():
+
+    return _volume_size_for_the_game

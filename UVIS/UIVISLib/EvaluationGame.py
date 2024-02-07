@@ -1,55 +1,112 @@
 import slicer
 import numpy as np
 import vtk
+import utils
+
+from enum import Enum
+
+
+class GameType(Enum):
+    Medical_data = 1
+    Abstract_data = 2
+
+
 class EvaluationGame():
 
     def __init__(self):
 
-
+        self.game_type = None
         self.crosshairNode = slicer.util.getNode("Crosshair")
 
-        self.userSeesGoldKaleVolume = slicer.util.array('UserSees_GoldKaleVolume')
-        self.userSeesGoldKaleNode = slicer.util.getNode('UserSees_GoldKaleVolume')
+        self.ground_truth_node = None
+        self.ground_truth_volume = None
+        self.user_sees_node = None
+        self.user_sees_volume = None
+        self.uncertainty_node = None
+        self.uncertainty_volume = None
 
-        self.gtNode = slicer.util.getNode('GroundTruthVolume')
-        self.gtVolume = slicer.util.array('GroundTruthVolume')
-        self.gtMapVolume = self.gtVolume.copy()
+       # self.userSeesGoldKaleVolume = slicer.util.array('UserSees_GoldKaleVolume')
+      #  self.userSeesGoldKaleNode = slicer.util.getNode('UserSees_GoldKaleVolume')
 
-        self.gtMapVolume[(self.gtVolume >= 230)] = 1
-        self.gtMapVolume[(self.gtVolume <= 25)] = -1
-        self.gtMapVolume[(self.gtVolume >= 25) & (self.gtVolume <= 230)] = 0
+     #   self.gtNode = slicer.util.getNode('GroundTruthVolume')
+      #  self.gtVolume = slicer.util.array('GroundTruthVolume')
+      #  self.gtMapVolume = self.gtVolume.copy()
+
+       # self.gtMapVolume[(self.gtVolume >= 230)] = 1
+       # self.gtMapVolume[(self.gtVolume <= 25)] = -1
+       # self.gtMapVolume[(self.gtVolume >= 25) & (self.gtVolume <= 230)] = 0
 
         self.totalScoreTextNode = slicer.util.getNode('totalScoreTextNode')
         self.scoreTextNode = slicer.util.getNode('scoreTextNode')
         self.UncertaintyTextNode = slicer.util.getNode('UncertaintyTextNode')
 
-        self.uncertaintyMapNode = slicer.util.getNode('UncertaintyMapVolume')
-        self.uncertaintyMapVolume = slicer.util.array('UncertaintyMapVolume')
+     #   self.uncertaintyMapNode = slicer.util.getNode('UncertaintyMapVolume')
+    #    self.uncertaintyMapVolume = slicer.util.array('UncertaintyMapVolume')
 
-        self.userSeesNode = slicer.util.getNode('UserSeesVolume')
-        self.userSeesVolume = slicer.util.array('UserSeesVolume')
-        self.userSeesMapVolume = self.userSeesVolume.copy()
+     #   self.userSeesNode = slicer.util.getNode('UserSeesVolume')
+     #   self.userSeesVolume = slicer.util.array('UserSeesVolume')
+     #   self.userSeesMapVolume = self.userSeesVolume.copy()
 
-        self.userSeesMapVolume[(self.userSeesVolume >= 230)] = 1
-        self.userSeesMapVolume[(self.userSeesVolume <= 25)] = -1
-        self.userSeesMapVolume[(self.userSeesVolume >= 25) & (self.userSeesVolume <= 230)] = 0
-        self.goldKaleSize = self.userSeesGoldKaleVolume.shape
-        self.userSeesGoldKaleVolumeTemp = self.userSeesGoldKaleVolume.copy()
+      #  self.userSeesMapVolume[(self.userSeesVolume >= 230)] = 1
+      #  self.userSeesMapVolume[(self.userSeesVolume <= 25)] = -1
+      #  self.userSeesMapVolume[(self.userSeesVolume >= 25) & (self.userSeesVolume <= 230)] = 0
+       # self.goldKaleSize = self.userSeesGoldKaleVolume.shape
+      #  self.userSeesGoldKaleVolumeTemp = self.userSeesGoldKaleVolume.copy()
 
-        self.uncertaintyNode = slicer.util.getNode('UncertaintyMapVolume')
-        self.compositeNode = slicer.mrmlScene.GetNodeByID('vtkMRMLSliceCompositeNodeYellow')
-        self.compositeNode.SetForegroundVolumeID(self.uncertaintyNode.GetID())
+      #  self.uncertaintyNode = slicer.util.getNode('UncertaintyMapVolume')
+      #  self.compositeNode = slicer.mrmlScene.GetNodeByID('vtkMRMLSliceCompositeNodeYellow')
+      #  self.compositeNode.SetForegroundVolumeID(self.uncertaintyNode.GetID())
 
-        self.uncertaintyArray = slicer.util.array('UncertaintyMapVolume')
-        self.uncertaintyArray = ((self.uncertaintyArray - 0) / (255 - 0)) * (10 - 1) + 1
+       # self.uncertaintyArray = slicer.util.array('UncertaintyMapVolume')
+      #  self.uncertaintyArray = ((self.uncertaintyArray - 0) / (255 - 0)) * (10 - 1) + 1
 
-       # pygame.mixer.init()
-       # pygame.mixer.music.load("Users/mahsa/BWH/Data/beep1.mp3")
+        # pygame.mixer.init()
+        # pygame.mixer.music.load("Users/mahsa/BWH/Data/beep1.mp3")
 
         self.audioMode = False
 
         self.numberOfDameges = 0
         self.VisualizationOn = False
+
+    def game_started(self):
+
+        self.volume_size = utils.get_project_root()
+
+        self.ground_truth_node = slicer.mrmlScene.AddNewNodeByClass('vtkMRMLScalarVolumeNode')
+        self.ground_truth_node.SetName("GroundTruth")
+        self.ground_truth_volume = np.zeros(shape=(300, 300, 3), dtype=np.uint8)
+        updateVolumeFromArray(self.ground_truth_node, self.ground_truth_volume)
+
+        self.user_sees_node = slicer.mrmlScene.AddNewNodeByClass('vtkMRMLScalarVolumeNode')
+        self.user_sees_node.SetName("UserSees")
+        origin = self.ground_truth_node.GetOrigin()
+        self.user_sees_node.SetOrigin(origin)
+        self.user_sees_volume = np.zeros(shape=(300, 300, 3), dtype=np.uint8)
+        updateVolumeFromArray(self.user_sees_node, self.user_sees_volume)
+
+
+    def set_game_type(self, game_type):
+        self.game_type = game_type
+
+    def set_ground_truth(self):
+        if self.game_type == GameType.Medical_data:
+            self.calculate_ground_truth_for_medical_images()
+        else:
+            self.generate_ground_truth_for_abstract_game()
+
+    def calculate_ground_truth_for_medical_images(self):
+        pass
+
+    def generate_ground_truth_for_abstract_game(self):
+        pass
+
+    def set_uncertainty(self, uncertainty_Node=None):
+        if self.game_type == GameType.Medical_data:
+            pass
+
+    def calculate_uncertainty_for_generated_volumes(self):
+        pass
+
 
     def calculate_score_for(self, gtScore, userSeesScore):
 
@@ -130,7 +187,7 @@ class EvaluationGame():
         if self.uncertaintyArray[point_Ijk[2]][point_Ijk[1]][
             point_Ijk[0]] > 5 and self.isGainingScoreStarted and self.audioMode:
             pass
-            #pygame.mixer.music.play()
+            # pygame.mixer.music.play()
 
         self.totalScore += score
         self.totalScoreTextNode.SetNthControlPointLabel(0, "$ " + str(round(self.totalScore)))
@@ -167,13 +224,15 @@ class EvaluationGame():
         self.isGainingScoreStarted = False
         self.totalScore = 0
         self.setupGameScene()
-       # NSCursor.hide()
+
+    # NSCursor.hide()
 
     def setupGameScene(self):
         slicer.util.setSliceViewerLayers(foreground=self.userSeesGoldKaleNode, foregroundOpacity=1)
         defaultSliceCompositeNode = slicer.vtkMRMLSliceCompositeNode()
         defaultSliceCompositeNode.SetLinkedControl(2)
         slicer.mrmlScene.AddDefaultNode(defaultSliceCompositeNode)
+
     def reset(self):
 
         self.crosshairNode.RemoveAllObservers()

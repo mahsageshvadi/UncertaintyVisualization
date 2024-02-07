@@ -168,6 +168,20 @@ class UVISWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         self.logic.colorLUT.resetLUTTogrey()
         self.color_overlay_slider_control.setValue(self.uncertaintyArray.min())
 
+    def game_started(self):
+
+        self.game_type_label.setVisible(True)
+        self.game_type.setVisible(True)
+        self.game_leve_label.setVisible(True)
+        self.game_level.setVisible(True)
+        self.play_button.setVisible(True)
+        self.reset_button.setVisible(True)
+        self.save_button.setVisible(True)
+        self.play_game_with_ground_truth.setVisible(True)
+        self.game_stop_button.setVisible(True)
+        self.game_start_button.setVisible(False)
+
+
     # Tumor based functions
     def change_model_opacity(self, TumorOffsets, opacity):
 
@@ -437,7 +451,7 @@ class UVISWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         self.select_color_overlay_two_one_color.addItem("Two Color Gradient")
         self.select_color_overlay_two_one_color.addItem("One Color Gradient")
         self.select_color_overlay_two_one_color.setCurrentIndex(0)
-        self.select_color_overlay_two_one_color.currentIndexChanged.connect(self.color_overlay_two_one_changed)
+       # self.select_color_overlay_two_one_color.currentIndexChanged.connect(self.color_overlay_two_one_changed)
 
         self.reset_button = qt.QPushButton("Reset")
         self.reset_button.setFixedSize(50, 30)
@@ -569,45 +583,96 @@ class UVISWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
 
         self.game = EvaluationGame()
         gameCollapsibleButton = ctk.ctkCollapsibleButton()
-        gameCollapsibleButton.text = "Game"
+        gameCollapsibleButton.text = "Game Evaluation"
         self.layout.addWidget(gameCollapsibleButton)
         gameCollapsibleLayout = qt.QFormLayout(gameCollapsibleButton)
 
+        self.game_start_button = qt.QPushButton("Start")
+        self.game_start_button.setFixedSize(50, 30)
+
+        self.game_type_label = qt.QLabel("Choose game type:" )
+        self.game_type_label.setFixedSize(120, 30)
+        self.game_type_label.setVisible(False)
+
+        self.game_type = qt.QComboBox()
+        self.game_type.setFixedSize(120, 30)
+        self.game_type.addItem("Mining Game")
+        self.game_type.addItem("Medical Game")
+        self.game_type.setCurrentIndex(0)
+        self.game_type.setVisible(False)
+
+
+        self.game_leve_label = qt.QLabel("Select Level:")
+        self.game_leve_label.setFixedSize(120, 30)
+        self.game_leve_label.setVisible(False)
+
+        self.game_level = qt.QComboBox()
+        self.game_level.setFixedSize(40, 30)
+        self.game_level.addItem("1")
+        self.game_level.addItem("2")
+        self.game_level.addItem("3")
+        self.game_level.addItem("4")
+        self.game_level.addItem("5")
+        self.game_level.addItem("6")
+        self.game_level.setCurrentIndex(0)
+        self.game_level.setVisible(False)
+
+        self.play_game_with_ground_truth = qt.QCheckBox("Play Game with Ground Truth")
+        self.play_game_with_ground_truth.setFixedSize(250, 30)
+        self.play_game_with_ground_truth.setVisible(False)
+
+        self.game_start_button.clicked.connect(self.game_started)
+
         self.play_button = qt.QPushButton("Play")
         self.play_button.setFixedSize(50, 30)
-        self.play_button.clicked.connect(self.game.play)  # Connect to your play_game function
+        self.play_button.clicked.connect(self.game.play)
+        self.play_button.setVisible(False)
 
         self.save_button = qt.QPushButton("Save")
         self.save_button.setFixedSize(50, 30)
         self.save_button.clicked.connect(self.game.save_data)
+        self.save_button.setVisible(False)
 
         self.reset_button = qt.QPushButton("Reset")
         self.reset_button.setFixedSize(50, 30)
         self.reset_button.clicked.connect(self.game.reset)  # Connect to your reset_game function
+        self.reset_button.setVisible(False)
 
-        self.colorOverlay_checkBox = qt.QCheckBox("Color Overlay")
-        self.colorOverlay_checkBox.setFixedSize(130, 30)
+        self.game_stop_button = qt.QPushButton("End the game")
+        self.game_stop_button.setFixedSize(100, 30)
+        self.game_stop_button.setVisible(False)
 
-        self.colorOverlay_checkBox.toggled.connect(
-            lambda: self.game.show_colorOverlay(self.colorOverlay_checkBox.isChecked()))
 
-        self.textMode_checkBox = qt.QCheckBox("Text Mode")
-        self.textMode_checkBox.setFixedSize(130, 30)
+      #  self.colorOverlay_checkBox = qt.QCheckBox("Color Overlay")
+     #   self.colorOverlay_checkBox.setFixedSize(130, 30)
 
-        self.textMode_checkBox.toggled.connect(lambda: self.game.show_text(self.textMode_checkBox.isChecked()))
+    #    self.colorOverlay_checkBox.toggled.connect(
+      #      lambda: self.game.show_colorOverlay(self.colorOverlay_checkBox.isChecked()))
 
-        self.audioMode_checkBox = qt.QCheckBox("Audio Mode")
-        self.audioMode_checkBox.setFixedSize(130, 30)
+     #   self.textMode_checkBox = qt.QCheckBox("Text Mode")
+    #    self.textMode_checkBox.setFixedSize(130, 30)
 
-        self.audioMode_checkBox.toggled.connect(lambda: self.game.changeAudioMode(self.audioMode_checkBox.isChecked()))
+     #   self.textMode_checkBox.toggled.connect(lambda: self.game.show_text(self.textMode_checkBox.isChecked()))
+
+     #   self.audioMode_checkBox = qt.QCheckBox("Audio Mode")
+     #   self.audioMode_checkBox.setFixedSize(130, 30)
+
+    #    self.audioMode_checkBox.toggled.connect(lambda: self.game.changeAudioMode(self.audioMode_checkBox.isChecked()))
 
         gameLayout = qt.QGridLayout()
-        gameLayout.addWidget(self.play_button, 0, 0)
-        gameLayout.addWidget(self.reset_button, 0, 1)
-        gameLayout.addWidget(self.colorOverlay_checkBox, 1, 0)
-        gameLayout.addWidget(self.textMode_checkBox, 2, 0)
-        gameLayout.addWidget(self.audioMode_checkBox, 3, 0)
-        gameLayout.addWidget(self.save_button, 0, 2)
+        gameLayout.addWidget(self.game_start_button, 0, 0)
+        gameLayout.addWidget(self.game_type_label, 1, 0)
+        gameLayout.addWidget(self.game_type, 1, 3)
+        gameLayout.addWidget(self.game_leve_label, 2, 0)
+        gameLayout.addWidget(self.game_level, 2,3)
+        gameLayout.addWidget(self.play_game_with_ground_truth, 3, 0)
+        gameLayout.addWidget(self.play_button, 4, 0)
+        gameLayout.addWidget(self.reset_button, 4, 1)
+     #   gameLayout.addWidget(self.colorOverlay_checkBox, 2, 0)
+    #    gameLayout.addWidget(self.textMode_checkBox, 3, 0)
+    #    gameLayout.addWidget(self.audioMode_checkBox, 4, 0)
+        gameLayout.addWidget(self.save_button, 4, 2)
+        gameLayout.addWidget(self.game_stop_button, 5, 0)
 
         gameCollapsibleLayout.addRow(gameLayout)
 
@@ -658,7 +723,7 @@ class UVISLogic(ScriptedLoadableModuleLogic):
         self.uncertaintyArray = slicer.util.arrayFromVolume(self.uncertaintyNode)
         self.markupVis = TexModeVisualization(self.uncertaintyArray)
         self.colorLUT = ColorLUT(self.uncertaintyForeground.uncertaintyVISVolumeNode)
-        self.backgroundModifiedVisualization = BackgroundModifiedVisualization(self.uncertaintyArray)
+       # self.backgroundModifiedVisualization = BackgroundModifiedVisualization(self.uncertaintyArray)
         self.tumorBasedViS = TumorBasedVis(self.uncertaintyArray)
         self.audioMode = AudioMode(self.uncertaintyArray)
 
