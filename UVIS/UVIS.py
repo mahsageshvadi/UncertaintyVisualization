@@ -185,7 +185,10 @@ class UVISWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         self.color_overlay_slider_control.setValue(self.uncertaintyArray.min())
 
     def both_volumes_selected(self):
-        pass
+        self.forgroundUncertaintycollapsible.setVisible(True)
+        self.blurinessColapsibbleButton.setVisible(True)
+        self.tumorBasedCollapsible.setVisible(True)
+        self.surgeonCentricCollapsible.setVisible(True)
     def game_started(self):
 
         self.game_type_label.setVisible(True)
@@ -295,11 +298,12 @@ class UVISWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         select_uncertainty_button = self.uiWidget.findChild(qt.QPushButton, "select_Uncertainty_Volume")
         select_uncertainty_button.connect('clicked()', self.onUncertaintyVolumeSelected)
 
-        blurinessColapsibbleButton = ctk.ctkCollapsibleButton()
-        blurinessColapsibbleButton.text = "Volume Filtering"
+        self.blurinessColapsibbleButton = ctk.ctkCollapsibleButton()
+        self.blurinessColapsibbleButton.text = "Volume Filtering"
+        self.blurinessColapsibbleButton.setVisible(False)
 
-        self.layout.addWidget(blurinessColapsibbleButton)
-        blurinessCollapsibleLayout = qt.QFormLayout(blurinessColapsibbleButton)
+        self.layout.addWidget(self.blurinessColapsibbleButton)
+        blurinessCollapsibleLayout = qt.QFormLayout(self.blurinessColapsibbleButton)
         filter_Layout = qt.QGridLayout()
         blurinessLevelSliderLabel = qt.QLabel("Filter Level:")
 
@@ -353,10 +357,11 @@ class UVISWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
 
         self.layout.addStretch(1)
 
-        tumorBasedCollapsible = ctk.ctkCollapsibleButton()
-        tumorBasedCollapsible.text = "Tumor Based"
-        self.layout.addWidget(tumorBasedCollapsible)
-        tumorBasedCollapsibleLayout = qt.QFormLayout(tumorBasedCollapsible)
+        self.tumorBasedCollapsible = ctk.ctkCollapsibleButton()
+        self.tumorBasedCollapsible.text = "Tumor Based"
+        self.tumorBasedCollapsible.setVisible(False)
+        self.layout.addWidget(self.tumorBasedCollapsible)
+        tumorBasedCollapsibleLayout = qt.QFormLayout(self.tumorBasedCollapsible)
         #  tumorBasedCollapsible.styleSheet = "color: rgb(144, 186, 136);"
 
         tumorBasedLayout = qt.QGridLayout()
@@ -462,10 +467,11 @@ class UVISWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
 
         self.layout.addStretch(1)
 
-        forgroundUncertaintycollapsible = ctk.ctkCollapsibleButton()
-        forgroundUncertaintycollapsible.text = "Color Overlay"
-        self.layout.addWidget(forgroundUncertaintycollapsible)
-        forgroundUncertaintycollapsibleLayout = qt.QFormLayout(forgroundUncertaintycollapsible)
+        self.forgroundUncertaintycollapsible = ctk.ctkCollapsibleButton()
+        self.forgroundUncertaintycollapsible.text = "Color Overlay"
+        self.forgroundUncertaintycollapsible.setVisible(False)
+        self.layout.addWidget(self.forgroundUncertaintycollapsible)
+        forgroundUncertaintycollapsibleLayout = qt.QFormLayout(self.forgroundUncertaintycollapsible)
         #    forgroundUncertaintycollapsible.styleSheet = "color: rgb(186, 136, 139);"
 
         self.foreGroundVISTabs = qt.QTabWidget()
@@ -523,10 +529,11 @@ class UVISWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
 
         self.layout.addStretch(1)
 
-        surgeonCentricCollapsible = ctk.ctkCollapsibleButton()
-        surgeonCentricCollapsible.text = "Surgoen Centric"
-        self.layout.addWidget(surgeonCentricCollapsible)
-        surgeonCentricCollapsibleLayout = qt.QFormLayout(surgeonCentricCollapsible)
+        self.surgeonCentricCollapsible = ctk.ctkCollapsibleButton()
+        self.surgeonCentricCollapsible.text = "Surgoen Centric"
+        self.surgeonCentricCollapsible.setVisible(False)
+        self.layout.addWidget(self.surgeonCentricCollapsible)
+        surgeonCentricCollapsibleLayout = qt.QFormLayout(self.surgeonCentricCollapsible)
         #     surgeonCentricCollapsible.styleSheet = "color: rgb(186, 163, 136)"
 
         self.surgoenCentricTabs = qt.QTabWidget()
