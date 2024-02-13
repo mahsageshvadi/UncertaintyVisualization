@@ -8,15 +8,14 @@ class UncertaintyForegroundVisualization():
     FLICKER_INTERVAL_MS = 400
     #todo Sync this with the slider value
     flicker_initial_threshold = 4
-    def __init__(self, uncertaintyNode):
+    def __init__(self, uncertaintyNode, input_image_node):
 
         self.already_in_flicker = None
         self.initialize_color_overlay_surgeon_centric()
         self.initialize_flicker_mode()
         # Node to display uncertainty in this layer
         self.uncertaintyVISVolumeNode = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLScalarVolumeNode", 'Uncertainty_Foreground')
-        v1 = slicer.util.getNode('ref_ref_t2')
-        self.origin = v1.GetOrigin()
+        self.origin = input_image_node.GetOrigin()
         self.uncertaintyVISVolumeNode.SetOrigin(self.origin)
         # Node for the main uncertainty
         self.uncertaintyNode = None

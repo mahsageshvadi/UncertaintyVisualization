@@ -12,7 +12,7 @@
     </property>
     <layout class="QVBoxLayout" name="verticalLayout">
       <!-- Inputs Collapsible -->
-      <item>
+     <!-- <item>
         <widget class="ctkCollapsibleButton" name="inputsCollapsibleButton">
           <property name="text">
             <string>Inputs</string>
@@ -74,9 +74,10 @@
             </item>
           </layout>
         </widget>
-      </item>
+      </item> -->
 
       <!-- Outputs Collapsible -->
+      <!--
       <item>
         <widget class="ctkCollapsibleButton" name="outputsCollapsibleButton">
           <property name="text">
@@ -147,9 +148,10 @@
             </item>
           </layout>
         </widget>
-      </item>
+      </item> -->
 
       <!-- Advanced Collapsible -->
+      <!--
       <item>
         <widget class="ctkCollapsibleButton" name="advancedCollapsibleButton">
           <property name="text">
@@ -178,9 +180,10 @@
             </item>
           </layout>
         </widget>
-      </item>
+      </item> -->
 
       <!-- Apply Button -->
+      <!--
       <item>
         <widget class="QPushButton" name="applyButton">
           <property name="enabled">
@@ -193,9 +196,10 @@
             <string>Apply</string>
           </property>
         </widget>
-      </item>
+      </item> -->
 
       <!-- Vertical Spacer -->
+      <!--
       <item>
         <spacer name="verticalSpacer">
           <property name="orientation">
@@ -208,7 +212,7 @@
             </size>
           </property>
         </spacer>
-      </item>
+      </item> -->
      <!-- Inputs for Images -->
       <item>
         <widget class="ctkCollapsibleButton" name="inputsCollapsibleButton">
@@ -226,7 +230,7 @@
               </widget>
             </item>
             <item row="0" column="1">
-              <widget class="QPushButton" name="selectInputVolume">
+              <widget class="QPushButton" name="select_Input_Volume">
                 <property name="text">
                   <string> Select Input Volume</string>
                 </property>
@@ -260,7 +264,7 @@
 
       <!-- Volume Filtering -->
       <!-- Collapsible -->
-      <item>
+      <!--<item>
         <widget class="ctkCollapsibleButton" name="volumeFilteringCollapsibleButton">
           <property name="text">
             <string> Volume Filtering</string>
@@ -282,7 +286,7 @@
           </layout>
 
         </widget>
-      </item>
+      </item> -->
 
     </layout>
   </widget>

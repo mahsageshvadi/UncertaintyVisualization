@@ -1,7 +1,7 @@
-import utils
 import os
 import numpy as np
 import nibabel as nib
+import UsefulFunctions
 
 from scipy.ndimage import gaussian_filter
 
@@ -11,7 +11,7 @@ class CalculateAllFilters():
         self.uncertainty_array = uncertainty_array
 
     def filter_calculations_initialization(self):
-        filterd_volume_path = utils.get_project_root() + '/Data/FilteredVolumes'
+        filterd_volume_path = utilities.get_project_root() + '/Data/FilteredVolumes'
         if not os.path.exists(filterd_volume_path):
             os.makedirs(filterd_volume_path)
 
@@ -19,9 +19,9 @@ class CalculateAllFilters():
         sigma_values = self.generate_sigma_values(1, self.uncertainty_array)
         filter_threshold_max = round(self.uncertainty_array.max()-1)
         filter_threshold_min = round(self.uncertainty_array.min()-1)
-        for filter_type in utils.get_filter_types():
+        for filter_type in utilities.get_filter_types():
             filtered_volumes_for_file = []
-            for filter_level in utils.get_filter_levels():
+            for filter_level in utilities.get_filter_levels():
                 for filter_threshold in range(filter_threshold_min, filter_threshold_max):
 
                     # get all the filter possibilities with different threshold between

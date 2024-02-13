@@ -1,7 +1,8 @@
 import slicer
 import numpy as np
 import vtk
-import utils
+import cv2
+
 
 from enum import Enum
 
@@ -25,7 +26,9 @@ class EvaluationGame():
         self.uncertainty_node = None
         self.uncertainty_volume = None
 
-       # self.userSeesGoldKaleVolume = slicer.util.array('UserSees_GoldKaleVolume')
+        self.play_with_ground_truth = None
+
+        # self.userSeesGoldKaleVolume = slicer.util.array('UserSees_GoldKaleVolume')
       #  self.userSeesGoldKaleNode = slicer.util.getNode('UserSees_GoldKaleVolume')
 
      #   self.gtNode = slicer.util.getNode('GroundTruthVolume')
@@ -70,21 +73,39 @@ class EvaluationGame():
 
     def game_started(self):
 
-        self.volume_size = utils.get_project_root()
+        #todo: change this
+        self._game_volume_size = 300
 
         self.ground_truth_node = slicer.mrmlScene.AddNewNodeByClass('vtkMRMLScalarVolumeNode')
         self.ground_truth_node.SetName("GroundTruth")
-        self.ground_truth_volume = np.zeros(shape=(300, 300, 3), dtype=np.uint8)
-        updateVolumeFromArray(self.ground_truth_node, self.ground_truth_volume)
+        self.ground_truth_volume = np.zeros(shape=(self._game_volume_size, self._game_volume_size, 3), dtype=np.uint8)
+        slicer.util.updateVolumeFromArray(self.ground_truth_node, self.ground_truth_volume)
 
         self.user_sees_node = slicer.mrmlScene.AddNewNodeByClass('vtkMRMLScalarVolumeNode')
         self.user_sees_node.SetName("UserSees")
         origin = self.ground_truth_node.GetOrigin()
         self.user_sees_node.SetOrigin(origin)
-        self.user_sees_volume = np.zeros(shape=(300, 300, 3), dtype=np.uint8)
-        updateVolumeFromArray(self.user_sees_node, self.user_sees_volume)
+        self.user_sees_volume = np.zeros(shape=(self._game_volume_size, self._game_volume_size, 3), dtype=np.uint8)
+        slicer.util.updateVolumeFromArray(self.user_sees_node, self.user_sees_volume)
+
+        self.uncertainty_node = slicer.mrmlScene.AddNewNodeByClass('vtkMRMLScalarVolumeNode')
+        self.uncertainty_node.SetName("Uncertainty")
+        self.uncertainty_node.SetOrigin(origin)
+        self.uncertainty_volume = np.zeros(shape=(self._game_volume_size, self._game_volume_size, 3), dtype=np.uint8)
+        slicer.util.updateVolumeFromArray(self.uncertainty_node, self.uncertainty_volume)
+
+        slicer.util.setSliceViewerLayers(background=self.user_sees_node)
+        slicer.util.setSliceViewerLayers(foreground=None)
+        self.generate_ground_truth_level_1()
 
 
+    def game_stopped(self):
+        slicer.mrmlScene.RemoveNode(self.ground_truth_node )
+        slicer.mrmlScene.RemoveNode(self.user_sees_node )
+        slicer.mrmlScene.RemoveNode(self.uncertainty_node )
+
+    def play_with_ground_truth_checked(self, is_Checked):
+        self.play_with_ground_truth = is_Checked
     def set_game_type(self, game_type):
         self.game_type = game_type
 
@@ -107,6 +128,43 @@ class EvaluationGame():
     def calculate_uncertainty_for_generated_volumes(self):
         pass
 
+    def generate_ground_truth_level_1(self):
+        #todo
+        level_one_gth = [
+        {
+            "angle" : 0,
+            "center" : (150, 150),
+            "axesLength" : (30, 20)
+        },
+        {
+            "angle": -13,
+            "center": (162, 150),
+            "axesLength": (20, 36)
+
+        },
+
+        {
+            "angle": 15,
+            "center": (150, 145),
+            "axesLength": (28, 25)
+
+        },
+
+        {
+            "angle": 8,
+            "center": (150, 152),
+            "axesLength": (24, 28)
+
+        }
+
+    ]
+        for shape in level_one_gth:
+            self.draw_oval(self.ground_truth_volume, shape['center'], shape['axesLength'], shape['angle'])
+        slicer.util.updateVolumeFromArray(self.ground_truth_node, self.ground_truth_volume)
+
+    def draw_oval(self, image, center, axesLength, angle):
+
+        cv2.ellipse(image, center, axesLength, angle, 0, 360, (255, 255, 255), -1)
 
     def calculate_score_for(self, gtScore, userSeesScore):
 

@@ -6,7 +6,7 @@ from scipy.ndimage import gaussian_filter
 
 class BackgroundModifiedVisualization():
 
-    def __init__(self, uncertaintyArray):
+    def __init__(self, uncertainty_array, input_image_array, input_image_node):
 
         self.BackgroundModifedVisualization = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLScalarVolumeNode",
                                                                                  "BackgroundModifedVisualization")
@@ -15,11 +15,11 @@ class BackgroundModifiedVisualization():
         self.BackgroundModifedVisualization.SetIJKToRASDirections(imageDirections)
         self.BackgroundModifedVisualization.SetSpacing(imageSpacing)
 
-        self.backgroundToBemodified = slicer.util.array('ref_ref_t2')
-        self.mainBackground = slicer.util.getNode('ref_ref_t2')
+        self.backgroundToBemodified = input_image_array
+        self.mainBackground = input_image_node
         self.origin = self.mainBackground.GetOrigin()
         self.BackgroundModifedVisualization.SetOrigin(self.origin)
-        self.uncertaintyArray = uncertaintyArray
+        self.uncertaintyArray = uncertainty_array
 
         self.initializeFilteringVariables()
         self.nonBinaryModeInitiation()

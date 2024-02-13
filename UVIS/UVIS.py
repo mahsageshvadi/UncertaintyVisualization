@@ -2,12 +2,10 @@ import vtk, ctk, qt
 import slicer
 import numpy as np
 import enum
-import UIVISLib
 import imp
-import UIVISLib.utils
+import UIVISLib.UsefulFunctions
 
 from UIVISLib.UncertaintyForegroundVisualization import UncertaintyForegroundVisualization
-from UIVISLib.BackgroundModifiedVisualization import BackgroundModifiedVisualization
 from UIVISLib.TexModeVisualization import TexModeVisualization
 from UIVISLib.ColorLUT import ColorLUT
 from UIVISLib.AudioMode import AudioMode
@@ -15,8 +13,6 @@ from UIVISLib.TumorBasedVis import TumorBasedVis
 from UIVISLib.EvaluationGame import EvaluationGame
 from slicer.ScriptedLoadableModule import *
 from slicer.util import VTKObservationMixin
-from vtk.util import numpy_support
-from AppKit import NSCursor, NSView
 
 
 class UVIS(ScriptedLoadableModule):
@@ -62,6 +58,8 @@ class UVISWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         self.current_filter_threshold_changed = 1
         self.currentAudioThresholdValue = 40
         self.currentFlickerThresholdValue = 40
+        self.input_volumes_selected_counter = 0
+
 
     def onReload(self):
 
@@ -78,6 +76,19 @@ class UVISWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
 
         ScriptedLoadableModuleWidget.onReload(self)
 
+    def onInputImageSelected(self):
+        dialog = qt.QFileDialog()
+        dialog.setFileMode(qt.QFileDialog.ExistingFile)
+
+        if dialog.exec_():
+            selectedFile = dialog.selectedFiles()[0]
+            self.input_volume_node = slicer.util.loadVolume(selectedFile, properties={"show": False})
+            self.input_volume_array = slicer.util.arrayFromVolume(self.input_volume_node)
+            if self.input_volume_node is not None:
+                self.input_volumes_selected_counter +=1
+                if self.input_volumes_selected_counter >= 2:
+                    self.both_volumes_selected()
+
     def onUncertaintyVolumeSelected(self):
 
         dialog = qt.QFileDialog()
@@ -86,6 +97,11 @@ class UVISWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         if dialog.exec_():
             selectedFile = dialog.selectedFiles()[0]
             uncertaintyNode = slicer.util.loadVolume(selectedFile, properties={"show": False})
+
+            if uncertaintyNode is not None:
+                self.input_volumes_selected_counter +=1
+                if self.input_volumes_selected_counter >= 2:
+                    self.both_volumes_selected()
 
             # todo it should be independednt of nifti file
             self.uncertaintyArray = slicer.util.arrayFromVolume(uncertaintyNode)
@@ -98,8 +114,8 @@ class UVISWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
                                                          self.apply_initial_threshold_for_color_overlay)
 
             self.slider_setup_based_on_uncertainty_value(self.sigma_slider,
-                                                         UIVISLib.utils.get_filter_levels()[0],
-                                                         UIVISLib.utils.get_filter_levels()[-1],
+                                                         UVIS.utils.get_filter_levels()[0],
+                                                         UVIS.utils.get_filter_levels()[-1],
                                                          self.filter_level_changed)
 
             self.slider_setup_based_on_uncertainty_value(self.bluriness_threshold_slider,
@@ -168,6 +184,8 @@ class UVISWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         self.logic.colorLUT.resetLUTTogrey()
         self.color_overlay_slider_control.setValue(self.uncertaintyArray.min())
 
+    def both_volumes_selected(self):
+        pass
     def game_started(self):
 
         self.game_type_label.setVisible(True)
@@ -180,9 +198,24 @@ class UVISWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         self.play_game_with_ground_truth.setVisible(True)
         self.game_stop_button.setVisible(True)
         self.game_start_button.setVisible(False)
+        self.game.game_started()
 
+    def game_stopped(self):
 
-    # Tumor based functions
+        self.game_type_label.setVisible(False)
+        self.game_type.setVisible(False)
+        self.game_leve_label.setVisible(False)
+        self.game_level.setVisible(False)
+        self.play_button.setVisible(False)
+        self.reset_button.setVisible(False)
+        self.save_button.setVisible(False)
+        self.play_game_with_ground_truth.setVisible(False)
+        self.game_stop_button.setVisible(False)
+        self.game_start_button.setVisible(True)
+        self.game.game_stopped()
+
+        # Tumor based functions
+
     def change_model_opacity(self, TumorOffsets, opacity):
 
         self.logic.tumorBasedViS.change_opacity_for_tumor_boundries(Button, opacity)
@@ -254,6 +287,10 @@ class UVISWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
 
         self.uiWidget = slicer.util.loadUI(self.resourcePath('UI/UVIS.ui'))
         self.layout.addWidget(self.uiWidget)
+
+        select_uncertainty_button = self.uiWidget.findChild(qt.QPushButton, "select_Input_Volume")
+        select_uncertainty_button.connect('clicked()', self.onInputImageSelected)
+
 
         select_uncertainty_button = self.uiWidget.findChild(qt.QPushButton, "select_Uncertainty_Volume")
         select_uncertainty_button.connect('clicked()', self.onUncertaintyVolumeSelected)
@@ -380,7 +417,8 @@ class UVISWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         self.spin_box_tumor.setRange(0, 20)
         self.spin_box_tumor.setValue(2)
         self.spin_box_tumor.setSingleStep(1)
-        self.spin_box_tumor.valueChanged.connect(lambda value: self.on_line_thickness_changed(TumorOffsets.Tumor, value))
+        self.spin_box_tumor.valueChanged.connect(
+            lambda value: self.on_line_thickness_changed(TumorOffsets.Tumor, value))
 
         tumorBasedLayout.addWidget(self.tumor_based_uncertainty_slider_label, 3, 0)
         tumorBasedLayout.addWidget(self.opacity_label_tumor, 4, 0, qt.Qt.AlignRight)
@@ -451,7 +489,7 @@ class UVISWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         self.select_color_overlay_two_one_color.addItem("Two Color Gradient")
         self.select_color_overlay_two_one_color.addItem("One Color Gradient")
         self.select_color_overlay_two_one_color.setCurrentIndex(0)
-       # self.select_color_overlay_two_one_color.currentIndexChanged.connect(self.color_overlay_two_one_changed)
+        # self.select_color_overlay_two_one_color.currentIndexChanged.connect(self.color_overlay_two_one_changed)
 
         self.reset_button = qt.QPushButton("Reset")
         self.reset_button.setFixedSize(50, 30)
@@ -590,7 +628,7 @@ class UVISWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         self.game_start_button = qt.QPushButton("Start")
         self.game_start_button.setFixedSize(50, 30)
 
-        self.game_type_label = qt.QLabel("Choose game type:" )
+        self.game_type_label = qt.QLabel("Choose game type:")
         self.game_type_label.setFixedSize(120, 30)
         self.game_type_label.setVisible(False)
 
@@ -600,7 +638,6 @@ class UVISWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         self.game_type.addItem("Medical Game")
         self.game_type.setCurrentIndex(0)
         self.game_type.setVisible(False)
-
 
         self.game_leve_label = qt.QLabel("Select Level:")
         self.game_leve_label.setFixedSize(120, 30)
@@ -620,6 +657,8 @@ class UVISWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         self.play_game_with_ground_truth = qt.QCheckBox("Play Game with Ground Truth")
         self.play_game_with_ground_truth.setFixedSize(250, 30)
         self.play_game_with_ground_truth.setVisible(False)
+        self.play_game_with_ground_truth.toggled.connect(
+                  lambda: self.game.play_with_ground_truth_checked(self.play_game_with_ground_truth.isChecked()))
 
         self.game_start_button.clicked.connect(self.game_started)
 
@@ -641,36 +680,36 @@ class UVISWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         self.game_stop_button = qt.QPushButton("End the game")
         self.game_stop_button.setFixedSize(100, 30)
         self.game_stop_button.setVisible(False)
+        self.game_stop_button.clicked.connect(self.game_stopped)
 
+        #  self.colorOverlay_checkBox = qt.QCheckBox("Color Overlay")
+        #   self.colorOverlay_checkBox.setFixedSize(130, 30)
 
-      #  self.colorOverlay_checkBox = qt.QCheckBox("Color Overlay")
-     #   self.colorOverlay_checkBox.setFixedSize(130, 30)
+        #    self.colorOverlay_checkBox.toggled.connect(
+        #      lambda: self.game.show_colorOverlay(self.colorOverlay_checkBox.isChecked()))
 
-    #    self.colorOverlay_checkBox.toggled.connect(
-      #      lambda: self.game.show_colorOverlay(self.colorOverlay_checkBox.isChecked()))
+        #   self.textMode_checkBox = qt.QCheckBox("Text Mode")
+        #    self.textMode_checkBox.setFixedSize(130, 30)
 
-     #   self.textMode_checkBox = qt.QCheckBox("Text Mode")
-    #    self.textMode_checkBox.setFixedSize(130, 30)
+        #   self.textMode_checkBox.toggled.connect(lambda: self.game.show_text(self.textMode_checkBox.isChecked()))
 
-     #   self.textMode_checkBox.toggled.connect(lambda: self.game.show_text(self.textMode_checkBox.isChecked()))
+        #   self.audioMode_checkBox = qt.QCheckBox("Audio Mode")
+        #   self.audioMode_checkBox.setFixedSize(130, 30)
 
-     #   self.audioMode_checkBox = qt.QCheckBox("Audio Mode")
-     #   self.audioMode_checkBox.setFixedSize(130, 30)
-
-    #    self.audioMode_checkBox.toggled.connect(lambda: self.game.changeAudioMode(self.audioMode_checkBox.isChecked()))
+        #    self.audioMode_checkBox.toggled.connect(lambda: self.game.changeAudioMode(self.audioMode_checkBox.isChecked()))
 
         gameLayout = qt.QGridLayout()
         gameLayout.addWidget(self.game_start_button, 0, 0)
         gameLayout.addWidget(self.game_type_label, 1, 0)
         gameLayout.addWidget(self.game_type, 1, 3)
         gameLayout.addWidget(self.game_leve_label, 2, 0)
-        gameLayout.addWidget(self.game_level, 2,3)
+        gameLayout.addWidget(self.game_level, 2, 3)
         gameLayout.addWidget(self.play_game_with_ground_truth, 3, 0)
         gameLayout.addWidget(self.play_button, 4, 0)
         gameLayout.addWidget(self.reset_button, 4, 1)
-     #   gameLayout.addWidget(self.colorOverlay_checkBox, 2, 0)
-    #    gameLayout.addWidget(self.textMode_checkBox, 3, 0)
-    #    gameLayout.addWidget(self.audioMode_checkBox, 4, 0)
+        #   gameLayout.addWidget(self.colorOverlay_checkBox, 2, 0)
+        #    gameLayout.addWidget(self.textMode_checkBox, 3, 0)
+        #    gameLayout.addWidget(self.audioMode_checkBox, 4, 0)
         gameLayout.addWidget(self.save_button, 4, 2)
         gameLayout.addWidget(self.game_stop_button, 5, 0)
 
@@ -719,11 +758,12 @@ class UVISLogic(ScriptedLoadableModuleLogic):
 
     def uncertaintyVolumeSelectedInitialization(self):
 
-        self.uncertaintyForeground = UncertaintyForegroundVisualization(self.uncertaintyNode)
+        self.uncertaintyForeground = UncertaintyForegroundVisualization(self.uncertaintyNode, self.input_volume_node)
         self.uncertaintyArray = slicer.util.arrayFromVolume(self.uncertaintyNode)
         self.markupVis = TexModeVisualization(self.uncertaintyArray)
         self.colorLUT = ColorLUT(self.uncertaintyForeground.uncertaintyVISVolumeNode)
-       # self.backgroundModifiedVisualization = BackgroundModifiedVisualization(self.uncertaintyArray)
+        #self.backgroundModifiedVisualization = BackgroundModifiedVisualization(self.uncertaintyArray,
+        #                                                                       self.input_image_array, self.input_image_node)
         self.tumorBasedViS = TumorBasedVis(self.uncertaintyArray)
         self.audioMode = AudioMode(self.uncertaintyArray)
 
@@ -843,7 +883,8 @@ class UVISLogic(ScriptedLoadableModuleLogic):
                     uncertainty_borders.append(self.uncertaintyArray.min())
                 else:
                     uncertainty_borders.append(
-                        not_bluredd_uncertainty_increase + uncertainty_sections_value_with_not_blured_increased * (i - 1))
+                        not_bluredd_uncertainty_increase + uncertainty_sections_value_with_not_blured_increased * (
+                                    i - 1))
 
         uncertainty_borders.append(self.uncertaintyArray.max())
         self.backgroundModifiedVisualization.visualizeFilteredBackground(sigmas, uncertainty_borders,
