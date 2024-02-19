@@ -4,6 +4,8 @@ import slicer
 
 userSeesGoldKaleNode = getNode('Variation_0')
 userSeesGoldKaleVolume = array('Variation_0')
+
+
 userSeesGoldKaleVolumeTemp = userSeesGoldKaleVolume.copy()
 goldKaleSize = userSeesGoldKaleVolume.shape
 

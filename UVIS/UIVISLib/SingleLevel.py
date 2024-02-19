@@ -66,47 +66,80 @@ updateVolumeFromArray(ovalNode, ovalImage)
 
 # Volume 1
 
-number_of_variations = 50
+number_of_variations = 100
+variationNode = getNode("Variation_0")
 
 for i in range(number_of_variations):
 
     ovalImage2 = np.zeros(shape=(300, 300, 3), dtype=np.uint8)
+    chance = np.random.randint(0, 2)
 
-    angle_difference = np.random.randint(0, 30)
+    angle_difference = np.random.randint(0, 5)
     angle2 = list_of_angles[0] + angle_difference
-    center2 = (list_of_ceters[0][0], list_of_ceters[0][1] + np.random.randint(-5, 5))
+    if i ==0 :
+        center2 = (list_of_ceters[0][0], list_of_ceters[0][1] + np.random.randint(-1, 1))
+        center_before_1 = center2
+    else:
+        if chance == 0:
+            center2 = (center_before_1[0] - np.random.randint(-1, 1), center_before_1[1] + np.random.randint(-1, 1))
+        else:
+            center2 = (center_before_1[0] + np.random.randint(-1, 1), center_before_1[1] + np.random.randint(-1, 1))
+
+        center_before_1 = center2
+
     axesLength2 = list_of_axesLength[0]
     cv2.ellipse(ovalImage2, center2, axesLength2, angle2, 0, 360, (255, 255, 255), -1)
 
-    angle_difference = np.random.randint(0, 30)
+    angle_difference = np.random.randint(0, 10)
     angle2 = list_of_angles[1] + angle_difference
-    center2 = (list_of_ceters[1][0], list_of_ceters[1][1] + np.random.randint(-5, 5))
+    if i == 0:
+        center2 = (list_of_ceters[1][0], list_of_ceters[1][1] + np.random.randint(-1, 1))
+        center_before_2 = center2
+    else:
+        if chance == 0:
+            center2 = (center_before_2[0] -np.random.randint(-1, 1), center_before_2[1] + np.random.randint(-1, 1))
+        else:
+            center2 = (center_before_2[0] +np.random.randint(-1, 1), center_before_2[1] + np.random.randint(-1, 1))
+
+        center_before_2 = center2
+
     axesLength2 = list_of_axesLength[1]
     cv2.ellipse(ovalImage2, center2, axesLength2, angle2, 0, 360, (255, 255, 255), -1)
 
-    angle_difference = np.random.randint(0, 30)
+    angle_difference = np.random.randint(0, 5)
     angle2 = list_of_angles[2]+ angle_difference
-    center2 =  (list_of_ceters[2][0], list_of_ceters[2][1] + np.random.randint(-5, 5))
+    if i == 0:
+        center2 =  (list_of_ceters[2][0] , list_of_ceters[2][1] + np.random.randint(-1, 1))
+        center_before_3 = center2
+    else:
+        if chance == 0:
+            center2 =  (center_before_3[0] - np.random.randint(-1, 1), center_before_3[1] + np.random.randint(-1, 1))
+        else:
+            center2 =  (center_before_3[0] + np.random.randint(-1, 1), center_before_3[1] + np.random.randint(-1, 1))
+
+        center_before_3 = center2
+
     axesLength2 = list_of_axesLength[2]
     cv2.ellipse(ovalImage2, center2, axesLength2, angle2, 0, 360, (255, 255, 255), -1)
 
 
-    angle_difference = np.random.randint(0, 30)
+    angle_difference = np.random.randint(0, 5)
     angle2 = list_of_angles[3]+ angle_difference
-    center2 = (list_of_ceters[3][0], list_of_ceters[3][1] + np.random.randint(-5, 5))
+    if i == 0:
+
+        center2 = (list_of_ceters[3][0] , list_of_ceters[3][1] + np.random.randint(-1, 1))
+        center_before_4 = center2
+    else:
+        if chance == 0:
+            center2 =  (center_before_4[0] -np.random.randint(-1, 1), center_before_4[1] + np.random.randint(-1, 1))
+        else:
+            center2 =  (center_before_4[0] +np.random.randint(-1, 1), center_before_4[1] + np.random.randint(-1, 1))
+        center_before_4 = center2
+
     axesLength2 = list_of_axesLength[3]
     cv2.ellipse(ovalImage2, center2, axesLength2, angle2, 0, 360, (255, 255, 255), -1)
 
 
-    if number_of_components == 1:
-        angle2 = list_of_angles[2]
-        center2 = list_of_ceters[2]
-        axesLength2 = list_of_axesLength[2]
-
-    else:
-        angle2 = list_of_angles[3]
-        center2 = list_of_ceters[3]
-        axesLength2 = list_of_axesLength[3]
 
    # angle_for_black_hole = list_of_angles[4]
 
@@ -128,10 +161,9 @@ for i in range(number_of_variations):
     list_of_variation_volumes.append(ovalImage2)
    # variationNode = slicer.mrmlScene.AddNewNodeByClass('vtkMRMLScalarVolumeNode')
    # variationNode.SetName("Variation_"+ str(i))
-    variationNode = getNode("Variation_"+ str(i%10))
     updateVolumeFromArray(variationNode, ovalImage2)
     slicer.app.processEvents()
-    time.sleep(0.2)
+    time.sleep(0.01)
 
 # STD:
 
@@ -149,17 +181,17 @@ updateVolumeFromArray(uncertaintyNode, uncertainty_variance)
 
 #max_offset_node = slicer.mrmlScene.AddNewNodeByClass('vtkMRMLScalarVolumeNode')
 #max_offset_node.SetName("MaxOffset")
-updateVolumeFromArray(max_offset_node, max_offset_volume)
+#updateVolumeFromArray(max_offset_node, max_offset_volume)
 
 min_offset_volume = np.logical_and(min_offset_volume == 255, ovalImage == 255).astype(np.uint8) * 255
 
 
 #min_offset_node = slicer.mrmlScene.AddNewNodeByClass('vtkMRMLScalarVolumeNode')
 #min_offset_node.SetName("MinOffset")
-updateVolumeFromArray(min_offset_node, min_offset_volume)
+#updateVolumeFromArray(min_offset_node, min_offset_volume)
 
 
 #average_offset_node = slicer.mrmlScene.AddNewNodeByClass('vtkMRMLScalarVolumeNode')
 #average_offset_node.SetName("Average")
 #average_offset_volume = max_offset_volume/ number_of_variations
-updateVolumeFromArray(average_offset_node, average_offset_volume)
+#updateVolumeFromArray(average_offset_node, average_offset_volume)

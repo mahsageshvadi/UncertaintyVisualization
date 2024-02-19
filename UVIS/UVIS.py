@@ -85,7 +85,10 @@ class UVISWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
             self.input_volume_node = slicer.util.loadVolume(selectedFile, properties={"show": False})
             self.input_volume_array = slicer.util.arrayFromVolume(self.input_volume_node)
             if self.input_volume_node is not None:
+                self.select_uncertainty_button.setVisible(True)
+                self.select_uncertainty_label.setVisible(True)
                 self.input_volumes_selected_counter +=1
+                self.logic.input_volume_node = self.input_volume_node
                 if self.input_volumes_selected_counter >= 2:
                     self.both_volumes_selected()
 
@@ -291,12 +294,14 @@ class UVISWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         self.uiWidget = slicer.util.loadUI(self.resourcePath('UI/UVIS.ui'))
         self.layout.addWidget(self.uiWidget)
 
-        select_uncertainty_button = self.uiWidget.findChild(qt.QPushButton, "select_Input_Volume")
-        select_uncertainty_button.connect('clicked()', self.onInputImageSelected)
+        select_input_button = self.uiWidget.findChild(qt.QPushButton, "select_Input_Volume")
+        self.select_uncertainty_button = self.uiWidget.findChild(qt.QPushButton, "select_Uncertainty_Volume")
+        self.select_uncertainty_label = self.uiWidget.findChild(qt.QLabel, "Uncertainty_volume_Label")
+        self.select_uncertainty_button.setVisible(False)
+        self.select_uncertainty_label.setVisible(False)
 
-
-        select_uncertainty_button = self.uiWidget.findChild(qt.QPushButton, "select_Uncertainty_Volume")
-        select_uncertainty_button.connect('clicked()', self.onUncertaintyVolumeSelected)
+        select_input_button.connect('clicked()', self.onInputImageSelected)
+        self.select_uncertainty_button.connect('clicked()', self.onUncertaintyVolumeSelected)
 
         self.blurinessColapsibbleButton = ctk.ctkCollapsibleButton()
         self.blurinessColapsibbleButton.text = "Volume Filtering"
@@ -308,18 +313,12 @@ class UVISWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         blurinessLevelSliderLabel = qt.QLabel("Filter Level:")
 
         self.sigma_slider = qt.QSlider(qt.Qt.Horizontal)
-        self.sigma_slider.setFocusPolicy(qt.Qt.StrongFocus)
-        self.sigma_slider.setTickInterval(10)
-        self.sigma_slider.setFixedSize(200, 30)
-        self.sigma_slider.setValue(self.current_filter_level)
+        self.slider_initial_setup(self.sigma_slider, self.current_filter_level)
 
         blurinessLThresholdSlider = qt.QLabel("Uncertainty Threshold:")
 
         self.bluriness_threshold_slider = qt.QSlider(qt.Qt.Horizontal)
-        self.bluriness_threshold_slider.setFocusPolicy(qt.Qt.StrongFocus)
-        self.bluriness_threshold_slider.setTickInterval(10)
-        self.bluriness_threshold_slider.setFixedSize(200, 30)
-        self.bluriness_threshold_slider.setValue(self.current_filter_threshold_changed)
+        self.slider_initial_setup(self.bluriness_threshold_slider, self.current_filter_threshold_changed)
 
         self.slider_value_label = qt.QLabel(str(self.current_filter_threshold_changed) + " mm")
 
@@ -371,9 +370,9 @@ class UVISWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
             lambda: self.tumor_based_mode_selected(self.selectTumorbasedCheckbox.isChecked()))
 
         self.bigger_uncertainty_slider = qt.QSlider(qt.Qt.Horizontal)
-        self.bigger_uncertainty_slider.setFocusPolicy(qt.Qt.StrongFocus)
-        self.bigger_uncertainty_slider.setTickInterval(10)
-        self.bigger_uncertainty_slider.setFixedSize(200, 30)
+        self.slider_initial_setup(self.bigger_uncertainty_slider)
+
+
         self.bigger_uncertainty_slider_label = qt.QLabel("Maximum Offset: ")
         self.opacity_label = qt.QLabel("Opacity: ")
         # self.sigma_slider.setValue(self.currentBlurinesssigma)
@@ -402,9 +401,8 @@ class UVISWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         tumorBasedLayout.addWidget(self.line_thickneess_for_bigger_offset, 2, 4, qt.Qt.AlignRight)
 
         self.tumor_based_uncertainty_slider = qt.QSlider(qt.Qt.Horizontal)
-        self.tumor_based_uncertainty_slider.setFocusPolicy(qt.Qt.StrongFocus)
-        self.tumor_based_uncertainty_slider.setTickInterval(10)
-        self.tumor_based_uncertainty_slider.setFixedSize(200, 30)
+        self.slider_initial_setup(self.tumor_based_uncertainty_slider)
+
         self.tumor_based_uncertainty_slider_label = qt.QLabel("Predicted Tumor: ")
         self.opacity_label_tumor = qt.QLabel("Opacity: ")
         self.tumor_based_uncertainty_slider.valueChanged.connect(
@@ -433,9 +431,8 @@ class UVISWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         tumorBasedLayout.addWidget(self.spin_box_tumor, 4, 4, qt.Qt.AlignRight)
 
         self.smaller_uncertainty_slider = qt.QSlider(qt.Qt.Horizontal)
-        self.smaller_uncertainty_slider.setFocusPolicy(qt.Qt.StrongFocus)
-        self.smaller_uncertainty_slider.setTickInterval(10)
-        self.smaller_uncertainty_slider.setFixedSize(200, 30)
+        self.slider_initial_setup(self.smaller_uncertainty_slider)
+
         self.smaller_uncertainty_slider_label = qt.QLabel("Minimum Offset:")
         self.opacity_label_smaller = qt.QLabel("Opacity: ")
         self.smaller_uncertainty_slider.valueChanged.connect(
@@ -504,8 +501,7 @@ class UVISWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         self.reset_button.connect('clicked()', self.reset_colormap_selected)
 
         self.color_overlay_slider_control = qt.QSlider(qt.Qt.Horizontal)
-        self.color_overlay_slider_control.setFocusPolicy(qt.Qt.StrongFocus)
-        self.color_overlay_slider_control.setTickInterval(10)
+        self.slider_initial_setup(self.color_overlay_slider_control)
         self.color_overlay_slider_control.setTickPosition(qt.QSlider.TicksBelow)
         self.mm_label_for_color_overlay = qt.QLabel(str(0) + " mm")
 
@@ -588,10 +584,8 @@ class UVISWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         self.audioDropdown.currentIndexChanged.connect(self.logic.on_audio_option_selected)
 
         self.audio_threshold_slider = qt.QSlider(qt.Qt.Horizontal)
-        self.audio_threshold_slider.setFocusPolicy(qt.Qt.StrongFocus)
-        self.audio_threshold_slider.setTickInterval(10)
-        self.audio_threshold_slider.setFixedSize(200, 30)
-        self.audio_threshold_slider.setValue(self.currentAudioThresholdValue)
+        self.slider_initial_setup(self.audio_threshold_slider ,self.currentAudioThresholdValue)
+
 
         self.audio_slider_value_label = qt.QLabel(str(self.currentAudioThresholdValue / 10) + " mm")
 
@@ -722,6 +716,14 @@ class UVISWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
 
         gameCollapsibleLayout.addRow(gameLayout)
 
+    def slider_initial_setup(self, slider, value = None,  tick_interval= 10, fixed_size_1 = 200, fixed_size_2 = 30) :
+
+        slider.setFocusPolicy(qt.Qt.StrongFocus)
+        slider.setTickInterval(tick_interval)
+        slider.setFixedSize(fixed_size_1, fixed_size_2)
+        if value is not None:
+            slider.setValue(value)
+
 
 class UVISLogic(ScriptedLoadableModuleLogic):
 
@@ -731,6 +733,7 @@ class UVISLogic(ScriptedLoadableModuleLogic):
         self.markupsNode = None
         self.crosshairNode = slicer.util.getNode("Crosshair")
         self.uncertaintyNode = None
+        self.input_volume_node = None
         self.id = None
 
         self.uncertaintyForeground = None

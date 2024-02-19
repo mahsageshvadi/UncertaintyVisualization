@@ -2,7 +2,7 @@ import slicer
 import numpy as np
 import vtk
 import cv2
-
+import time
 
 from enum import Enum
 
@@ -70,6 +70,10 @@ class EvaluationGame():
 
         self.numberOfDameges = 0
         self.VisualizationOn = False
+        self.list_of_angles = []
+        self.list_of_ceters = []
+        self.list_of_axesLength = []
+        self.list_of_variation_volumes = []
 
     def game_started(self):
 
@@ -88,6 +92,9 @@ class EvaluationGame():
         self.user_sees_volume = np.zeros(shape=(self._game_volume_size, self._game_volume_size, 3), dtype=np.uint8)
         slicer.util.updateVolumeFromArray(self.user_sees_node, self.user_sees_volume)
 
+        self.user_sees_volume_temp = self.user_sees_volume.copy()
+    #    self.userSeesMapVolume = self.user_sees_volume.copy()
+
         self.uncertainty_node = slicer.mrmlScene.AddNewNodeByClass('vtkMRMLScalarVolumeNode')
         self.uncertainty_node.SetName("Uncertainty")
         self.uncertainty_node.SetOrigin(origin)
@@ -97,6 +104,8 @@ class EvaluationGame():
         slicer.util.setSliceViewerLayers(background=self.user_sees_node)
         slicer.util.setSliceViewerLayers(foreground=None)
         self.generate_ground_truth_level_1()
+
+
 
 
     def game_stopped(self):
@@ -160,6 +169,9 @@ class EvaluationGame():
     ]
         for shape in level_one_gth:
             self.draw_oval(self.ground_truth_volume, shape['center'], shape['axesLength'], shape['angle'])
+            self.list_of_angles.append(shape['angle'])
+            self.list_of_ceters.append(shape['center'])
+            self.list_of_axesLength.append(shape['axesLength'])
         slicer.util.updateVolumeFromArray(self.ground_truth_node, self.ground_truth_volume)
 
     def draw_oval(self, image, center, axesLength, angle):
@@ -211,20 +223,23 @@ class EvaluationGame():
 
         self.crosshairNode.GetCursorPositionRAS(ras)
         volumeRasToIjk = vtk.vtkMatrix4x4()
-        self.userSeesGoldKaleNode.GetRASToIJKMatrix(volumeRasToIjk)
+        self.user_sees_node.GetRASToIJKMatrix(volumeRasToIjk)
 
         point_Ijk = [0, 0, 0, 1]
         volumeRasToIjk.MultiplyPoint(np.append(ras, 1.0), point_Ijk)
         point_Ijk = [int(round(c)) for c in point_Ijk[0:3]]
         radius = 50
         z_range = range(max(0, point_Ijk[2] - radius),
-                        min(self.userSeesGoldKaleVolume.shape[0], point_Ijk[2] + radius + 1))
+                        min(self.user_sees_volume.shape[0], point_Ijk[2] + radius + 1))
         y_range = range(max(0, point_Ijk[1] - radius),
-                        min(self.userSeesGoldKaleVolume.shape[1], point_Ijk[1] + radius + 1))
+                        min(self.user_sees_volume.shape[1], point_Ijk[1] + radius + 1))
         x_range = range(max(0, point_Ijk[0] - radius),
-                        min(self.userSeesGoldKaleVolume.shape[2], point_Ijk[0] + radius + 1))
+                        min(self.user_sees_volume.shape[2], point_Ijk[0] + radius + 1))
 
         score = 0
+
+        print(self.ground_truth_volume)
+        print(self.user_sees_volume)
         for z in z_range:
             for y in y_range:
                 for x in x_range:
@@ -232,17 +247,17 @@ class EvaluationGame():
                         tempScore = 0
                         if not self.mindedPoints[z, y, x]:
                             self.mindedPoints[z, y, x] = 1
-                            tempScore = self.calculate_score_for(self.gtMapVolume[z, y, x],
-                                                                 self.userSeesMapVolume[z, y, x]) / 1000
+                            tempScore = self.calculate_score_for(self.ground_truth_volume[z, y, x],
+                                                                 self.user_sees_volume[z, y, x]) / 1000
 
                         if (tempScore > 0):
                             self.isGainingScoreStarted = True
                         if self.isGainingScoreStarted:
                             score += tempScore
 
-                        self.userSeesGoldKaleVolume[z, y, x] = 255.0
+                        self.user_sees_volume[z, y, x] = 255.0
 
-        if self.uncertaintyArray[point_Ijk[2]][point_Ijk[1]][
+        if self.uncertainty_volume[point_Ijk[2]][point_Ijk[1]][
             point_Ijk[0]] > 5 and self.isGainingScoreStarted and self.audioMode:
             pass
             # pygame.mixer.music.play()
@@ -250,7 +265,7 @@ class EvaluationGame():
         self.totalScore += score
         self.totalScoreTextNode.SetNthControlPointLabel(0, "$ " + str(round(self.totalScore)))
         self.UncertaintyTextNode.SetNthControlPointLabel(0, u"\u00B1 " + str(
-            round(self.uncertaintyArray[point_Ijk[2]][point_Ijk[1]][point_Ijk[0]])))
+            round(self.uncertainty_volume[point_Ijk[2]][point_Ijk[1]][point_Ijk[0]])))
         self.UncertaintyTextNode.SetNthControlPointPosition(0, ras[0], ras[1], ras[2])
 
         if score < 0 and self.isGainingScoreStarted:
@@ -259,7 +274,7 @@ class EvaluationGame():
             self.scoreTextNode.GetDisplayNode().SetActiveColor(1, 0, 0)
         else:
             self.scoreTextNode.GetDisplayNode().SetTextScale(4)
-            self.scoreTextNode.GetDisplayNode().SetSelectedColor(0, 0, 0)
+            self.scoreTextNode.GetDisNode().SetSelectedColor(0, 0, 0)
             self.scoreTextNode.GetDisplayNode().SetActiveColor(0, 0, 0)
 
         if score > 0:
@@ -272,11 +287,12 @@ class EvaluationGame():
 
         self.scoreTextNode.SetNthControlPointPosition(0, ras[0], ras[1], ras[2])
 
-        slicer.util.updateVolumeFromArray(self.userSeesGoldKaleNode, self.userSeesGoldKaleVolume)
+        slicer.util.updateVolumeFromArray(self.user_sees_node, self.user_sees_volume)
 
     def play(self):
 
-        self.mindedPoints = np.zeros(shape=(self.goldKaleSize[0], self.goldKaleSize[1], self.goldKaleSize[2]))
+        self.mindedPoints = np.zeros(shape=(self._game_volume_size, self._game_volume_size, 3))
+        self.generate_user_sees()
         self.crosshairNodeId = self.crosshairNode.AddObserver(slicer.vtkMRMLCrosshairNode.CursorPositionModifiedEvent,
                                                               self.onMouseMoved)
         self.isGainingScoreStarted = False
@@ -284,9 +300,43 @@ class EvaluationGame():
         self.setupGameScene()
 
     # NSCursor.hide()
+    def generate_user_sees(self):
+        number_of_variations = 10
+
+        for i in range(number_of_variations):
+
+            variations = np.zeros(shape=(300, 300, 3), dtype=np.uint8)
+
+            angle_difference = np.random.randint(0, 30)
+            angle2 = self.list_of_angles[0] + angle_difference
+            center2 = (self.list_of_ceters[0][0], self.list_of_ceters[0][1] + np.random.randint(-5, 5))
+            axesLength2 = self.list_of_axesLength[0]
+            cv2.ellipse(variations, center2, axesLength2, angle2, 0, 360, (255, 255, 255), -1)
+
+            angle_difference = np.random.randint(0, 30)
+            angle2 = self.list_of_angles[1] + angle_difference
+            center2 = (self.list_of_ceters[1][0], self.list_of_ceters[1][1] + np.random.randint(-5, 5))
+            axesLength2 = self.list_of_axesLength[1]
+            cv2.ellipse(variations, center2, axesLength2, angle2, 0, 360, (255, 255, 255), -1)
+
+            angle_difference = np.random.randint(0, 30)
+            angle2 = self.list_of_angles[2] + angle_difference
+            center2 = (self.list_of_ceters[2][0], self.list_of_ceters[2][1] + np.random.randint(-5, 5))
+            axesLength2 = self.list_of_axesLength[2]
+            cv2.ellipse(variations, center2, axesLength2, angle2, 0, 360, (255, 255, 255), -1)
+
+            angle_difference = np.random.randint(0, 30)
+            angle2 = self.list_of_angles[3] + angle_difference
+            center2 = (self.list_of_ceters[3][0], self.list_of_ceters[3][1] + np.random.randint(-5, 5))
+            axesLength2 = self.list_of_axesLength[3]
+            cv2.ellipse(variations, center2, axesLength2, angle2, 0, 360, (255, 255, 255), -1)
+            slicer.util.updateVolumeFromArray(self.user_sees_node, variations)
+            slicer.app.processEvents()
+            time.sleep(0.2)
+
 
     def setupGameScene(self):
-        slicer.util.setSliceViewerLayers(foreground=self.userSeesGoldKaleNode, foregroundOpacity=1)
+        slicer.util.setSliceViewerLayers(foreground=self.user_sees_node, foregroundOpacity=1)
         defaultSliceCompositeNode = slicer.vtkMRMLSliceCompositeNode()
         defaultSliceCompositeNode.SetLinkedControl(2)
         slicer.mrmlScene.AddDefaultNode(defaultSliceCompositeNode)
@@ -294,8 +344,8 @@ class EvaluationGame():
     def reset(self):
 
         self.crosshairNode.RemoveAllObservers()
-        slicer.util.updateVolumeFromArray(self.userSeesGoldKaleNode, self.userSeesGoldKaleVolumeTemp)
-        self.userSeesGoldKaleVolume = self.userSeesGoldKaleVolumeTemp.copy()
+        slicer.util.updateVolumeFromArray(self.user_sees_node, self.user_sees_volume)
+        self.user_sees_volume = self.user_sees_volume_temp
         self.totalScore = 0
         self.totalScoreTextNode.SetNthControlPointLabel(0, "$ " + str(self.totalScore))
         self.numberOfDameges = 0
@@ -325,7 +375,7 @@ class EvaluationGame():
         data_for_save = {
             "Number Of Damages: ": self.numberOfDameges,
             "Score ": self.totalScore,
-            "ExtedofResect: ": np.count_nonzero(self.userSeesGoldKaleVolume != 255),
+            "ExtedofResect: ": np.count_nonzero(self.user_sees_volume != 255),
             "VisualizationOn": self.VisualizationOn
 
         }
