@@ -54,7 +54,8 @@ class CalculateAllFilters():
                 if i < filter_threshold:
                     filtered_volume_list.append(image_array_copy)
                 else:
-                    filtered_volume_list.append(self.add_gaussian_noise(image_array_copy, mean=0, std= (i - filter_threshold) * (2.5*filter_level + 2.5)))
+                    filtered_volume_list.append(self.add_gaussian_noise(image_array_copy, mean=0,
+                                                                        std= (i - filter_threshold) * (2.5*filter_level + 2.5)))
             elif filter_type == "Blur":
                 filtered_volume_list.append(gaussian_filter(image_array_copy,
                                                                 sigma=(i - filter_threshold) *(0.25 * (filter_level + 1))))

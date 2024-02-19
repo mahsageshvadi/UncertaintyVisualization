@@ -10,6 +10,7 @@ class BackgroundModifiedVisualization():
 
         self.BackgroundModifedVisualization = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLScalarVolumeNode",
                                                                                  "BackgroundModifedVisualization")
+        #todo: change this
         imageDirections = [[1, 0, 0], [0, 1, 0], [0, 0, 1]]
         imageSpacing = [0.5, 0.5, 0.5]
         self.BackgroundModifedVisualization.SetIJKToRASDirections(imageDirections)

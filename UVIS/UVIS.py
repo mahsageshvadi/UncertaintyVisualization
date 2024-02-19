@@ -61,6 +61,7 @@ class UVISWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         self.input_volumes_selected_counter = 0
 
 
+
     def onReload(self):
 
         packageName = 'UIVISLib'
@@ -76,6 +77,7 @@ class UVISWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
 
         ScriptedLoadableModuleWidget.onReload(self)
 
+
     def onInputImageSelected(self):
         dialog = qt.QFileDialog()
         dialog.setFileMode(qt.QFileDialog.ExistingFile)
@@ -85,12 +87,26 @@ class UVISWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
             self.input_volume_node = slicer.util.loadVolume(selectedFile, properties={"show": False})
             self.input_volume_array = slicer.util.arrayFromVolume(self.input_volume_node)
             if self.input_volume_node is not None:
+                slicer.util.setSliceViewerLayers(background=self.input_volume_node)
                 self.select_uncertainty_button.setVisible(True)
                 self.select_uncertainty_label.setVisible(True)
                 self.input_volumes_selected_counter +=1
                 self.logic.input_volume_node = self.input_volume_node
-                if self.input_volumes_selected_counter >= 2:
-                    self.both_volumes_selected()
+                if self.input_volumes_selected_counter >= 3:
+                    self.all_volumes_selected()
+    def onSegmentationSelected(self):
+        dialog = qt.QFileDialog()
+        dialog.setFileMode(qt.QFileDialog.ExistingFile)
+
+        if dialog.exec_():
+            selectedFile = dialog.selectedFiles()[0]
+            self.segmentation_node = slicer.util.loadSegmentation(selectedFile, properties={"show": False})
+            if self.segmentation_node is not None:
+                if self.segmentation_node.IsA('vtkMRMLSegmentationNode'):
+                    self.input_volumes_selected_counter +=1
+                    self.logic.segmentation_node = self.segmentation_node
+                else:
+                    slicer.util.warningDisplay("Please select segmentation.", windowTitle="Warning")
 
     def onUncertaintyVolumeSelected(self):
 
@@ -104,7 +120,7 @@ class UVISWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
             if uncertaintyNode is not None:
                 self.input_volumes_selected_counter +=1
                 if self.input_volumes_selected_counter >= 2:
-                    self.both_volumes_selected()
+                    self.all_volumes_selected()
 
             # todo it should be independednt of nifti file
             self.uncertaintyArray = slicer.util.arrayFromVolume(uncertaintyNode)
@@ -187,7 +203,7 @@ class UVISWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         self.logic.colorLUT.resetLUTTogrey()
         self.color_overlay_slider_control.setValue(self.uncertaintyArray.min())
 
-    def both_volumes_selected(self):
+    def all_volumes_selected(self):
         self.forgroundUncertaintycollapsible.setVisible(True)
         self.blurinessColapsibbleButton.setVisible(True)
         self.tumorBasedCollapsible.setVisible(True)
@@ -295,12 +311,17 @@ class UVISWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         self.layout.addWidget(self.uiWidget)
 
         select_input_button = self.uiWidget.findChild(qt.QPushButton, "select_Input_Volume")
+
+        select_segmentation_button = self.uiWidget.findChild(qt.QPushButton, "select_segmentation")
+        self.select_segmentation_label = self.uiWidget.findChild(qt.QLabel, "Segmentation_input_label")
+
         self.select_uncertainty_button = self.uiWidget.findChild(qt.QPushButton, "select_Uncertainty_Volume")
         self.select_uncertainty_label = self.uiWidget.findChild(qt.QLabel, "Uncertainty_volume_Label")
         self.select_uncertainty_button.setVisible(False)
         self.select_uncertainty_label.setVisible(False)
 
         select_input_button.connect('clicked()', self.onInputImageSelected)
+        select_segmentation_button.connect('clicked()', self.onSegmentationSelected)
         self.select_uncertainty_button.connect('clicked()', self.onUncertaintyVolumeSelected)
 
         self.blurinessColapsibbleButton = ctk.ctkCollapsibleButton()
@@ -716,6 +737,8 @@ class UVISWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
 
         gameCollapsibleLayout.addRow(gameLayout)
 
+    def tumor_based_ui_init(self):
+        pass
     def slider_initial_setup(self, slider, value = None,  tick_interval= 10, fixed_size_1 = 200, fixed_size_2 = 30) :
 
         slider.setFocusPolicy(qt.Qt.StrongFocus)
@@ -743,6 +766,8 @@ class UVISLogic(ScriptedLoadableModuleLogic):
         self.audioMode = None
         self.tumorBasedViS = None
         self.numberOfActiveOnMouseMoveAtts = 0
+
+        self.segmentation_node = None
 
         # Link different views
         sliceCompositeNodes = slicer.util.getNodesByClass("vtkMRMLSliceCompositeNode")
@@ -774,7 +799,7 @@ class UVISLogic(ScriptedLoadableModuleLogic):
         self.colorLUT = ColorLUT(self.uncertaintyForeground.uncertaintyVISVolumeNode)
         #self.backgroundModifiedVisualization = BackgroundModifiedVisualization(self.uncertaintyArray,
         #                                                                       self.input_image_array, self.input_image_node)
-        self.tumorBasedViS = TumorBasedVis(self.uncertaintyArray)
+        self.tumorBasedViS = TumorBasedVis(self.uncertaintyArray , self.segmentation_node)
         self.audioMode = AudioMode(self.uncertaintyArray)
 
     def surgeonCentricModeSelected(self, isChecked):

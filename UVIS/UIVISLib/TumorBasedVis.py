@@ -12,7 +12,7 @@ class Button(enum.Enum):
 
 class TumorBasedVis():
 
-    def __init__(self, uncertainty_array):
+    def __init__(self, uncertainty_array, segmentation_node):
 
         self.smaller_model = None
         self.larger_model = None
@@ -34,9 +34,15 @@ class TumorBasedVis():
         self.point_data = None
         self.normals = None
 
-        self.temporary_init()
-        self.calculate_uncertatinty_volumes()
+       # self.temporary_init()
+      #  self.calculate_uncertatinty_volumes()
+        self.segmentation_node = segmentation_node
+        self.generate_tumor_3D_model()
 
+    def generate_tumor_3D_model(self):
+        shNode = slicer.mrmlScene.GetSubjectHierarchyNode()
+        exportFolderItemId = shNode.CreateFolderItem(shNode.GetSceneItemID(), "Segments")
+        slicer.modules.segmentations.logic().ExportAllSegmentsToModels(self.segmentation_node,exportFolderItemId)
 
 
 
