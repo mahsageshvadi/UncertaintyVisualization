@@ -30,7 +30,6 @@ class UncertaintyForegroundVisualization():
         self.initiateUncertaintyVISVolumeNode()
         self.displayNode = self.uncertaintyVISVolumeNode.GetDisplayNode()
 
-
     def initialize_color_overlay_surgeon_centric(self):
         self.mask = self.shpere_mask(self.color_overlay_surgeon_centric_mask_margin)
         self.is_color_overlay_surgeon_centric = False

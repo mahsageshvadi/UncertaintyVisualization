@@ -41,6 +41,16 @@ class TumorBasedVis():
         self.generate_tumor_3D_model()
         self.generate_offsets()
 
+
+    def test_new_offset_generation(self):
+        labelMapVolumeNode = slicer.mrmlScene.AddNewNodeByClass('vtkMRMLLabelMapVolumeNode', 'LabelMap')
+
+        # Step 4: Convert the segmentation to a label map
+        slicer.modules.segmentations.logic().ExportVisibleSegmentsToLabelmapNode(self.segmentation_node, labelMapVolumeNode)
+
+        pass
+
+
     def generate_tumor_3D_model(self):
 
         shNode = slicer.mrmlScene.GetSubjectHierarchyNode()
@@ -105,6 +115,10 @@ class TumorBasedVis():
         model_output_points_small = smaller_offset_poly_data.GetPoints()
         volumeRasToIjk = vtk.vtkMatrix4x4()
 
+        # todo: change this
+        bigoff = slicer.util.array('NewScalarVolume')
+        bigOffNode = slicer.util.getNode('NewScalarVolume')
+
         for i in range(num_points):
 
             # Get ith point
@@ -130,6 +144,10 @@ class TumorBasedVis():
 
             # Get uncertainty Value of ith point
             uncertainty_value = self.uncertainty_array[point_Ijk[2]][point_Ijk[1]][point_Ijk[0]] / 2
+
+            mask = self.shpere_mask(uncertainty_value)
+            bigoff[~mask] = 1
+            slicer.util.updateVolumeFromArray(bigOffNode, bigoff)
 
             # Get normal of ith point
             normal = [0.0, 0.0, 0.0]
@@ -158,7 +176,17 @@ class TumorBasedVis():
         # modelOutputPoly.Modified()
 
         slicer.app.processEvents()
+    def shpere_mask(self, radius):
 
+        center = (int(radius), int(radius), int(radius))
+
+        gh = radius*2
+        Y, X, Z = np.ogrid[:gh, :gh, :gh]
+        dist_from_center = np.sqrt((X - center[0])**2 + (Y-center[1])**2 + (Z-center[1])**2)
+
+        mask = dist_from_center <= radius
+
+        return mask
     def getUnitVec(self,normal):
 
         normal_magnitude = math.sqrt(sum(n ** 2 for n in normal))
