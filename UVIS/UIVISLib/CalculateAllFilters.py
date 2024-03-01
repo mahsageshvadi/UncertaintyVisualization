@@ -1,7 +1,6 @@
 import os
 import numpy as np
 import nibabel as nib
-import UsefulFunctions
 
 from scipy.ndimage import gaussian_filter
 

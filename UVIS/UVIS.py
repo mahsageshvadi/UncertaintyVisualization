@@ -3,7 +3,7 @@ import slicer
 import numpy as np
 import enum
 import imp
-import UIVISLib.UsefulFunctions
+import os
 
 from UIVISLib.UncertaintyForegroundVisualization import UncertaintyForegroundVisualization
 from UIVISLib.TexModeVisualization import TexModeVisualization
@@ -13,6 +13,7 @@ from UIVISLib.TumorBasedVis import TumorBasedVis
 from UIVISLib.EvaluationGame import EvaluationGame
 from slicer.ScriptedLoadableModule import *
 from slicer.util import VTKObservationMixin
+from UIVISLib.UsefulFunctions import UsefulFunctions
 
 
 class UVIS(ScriptedLoadableModule):
@@ -57,6 +58,11 @@ class UVISWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         self.currentAudioThresholdValue = 40
         self.currentFlickerThresholdValue = 40
         self.input_volumes_selected_counter = 0
+        self.origin = (0, 0, 0)
+        self.spacing = (0.5, 0.5, 0.5)
+        self.directionMatrix  = [[1, 0, 0],
+                           [0, 1, 0],
+                           [0, 0, 1]]
 
 
 
@@ -75,30 +81,46 @@ class UVISWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
 
         ScriptedLoadableModuleWidget.onReload(self)
 
-
-    def onInputImageSelected(self):
+    def on_volume_selected_from_dir(self, button_identifier):
         dialog = qt.QFileDialog()
         dialog.setFileMode(qt.QFileDialog.ExistingFile)
 
         if dialog.exec_():
             selectedFile = dialog.selectedFiles()[0]
-            self.input_volume_node = slicer.util.loadVolume(selectedFile, properties={"show": False})
-            self.input_volume_array = slicer.util.arrayFromVolume(self.input_volume_node)
-            if self.input_volume_node is not None:
-                slicer.util.setSliceViewerLayers(background=self.input_volume_node)
-                self.select_uncertainty_button.setVisible(True)
-                self.select_uncertainty_label.setVisible(True)
-                self.input_volumes_selected_counter +=1
-                self.logic.input_volume_node = self.input_volume_node
-                if self.input_volumes_selected_counter >= 3:
-                    self.all_volumes_selected()
-    def onSegmentationSelected(self):
-        dialog = qt.QFileDialog()
-        dialog.setFileMode(qt.QFileDialog.ExistingFile)
+            if button_identifier == 'input_volume':
+                self.input_volume_selected(selectedFile)
+            elif button_identifier == 'segmentation_volume':
+                self.segmentation_selected(selectedFile)
+            elif button_identifier == 'uncertainty_volume':
+                self.uncertainty_selected(selectedFile)
 
-        if dialog.exec_():
-            selectedFile = dialog.selectedFiles()[0]
+    def align_volumes( self, volume_node):
+            volume_node.SetSpacing(self.spacing)
+            volume_node.SetOrigin(self.origin)
+            volume_node.SetIJKToRASDirections(self.directionMatrix[0][0], self.directionMatrix[0][1], self.directionMatrix[0][2],
+                                             self.directionMatrix[1][0], self.directionMatrix[1][1], self.directionMatrix[1][2],
+                                             self.directionMatrix[2][0], self.directionMatrix[2][1], self.directionMatrix[2][2])
+
+    def set_origin(self, volume_node):
+            volume_node.SetOrigin(self.origin)
+
+    def input_volume_selected(self, selectedFile):
+        self.input_volume_node = slicer.util.loadVolume(selectedFile, properties={"show": False})
+        self.align_volumes(self.input_volume_node)
+
+        self.input_volume_array = slicer.util.arrayFromVolume(self.input_volume_node)
+        if self.input_volume_node is not None:
+            slicer.util.setSliceViewerLayers(background=self.input_volume_node)
+            self.select_uncertainty_button.setVisible(True)
+            self.select_uncertainty_label.setVisible(True)
+            self.input_volumes_selected_counter += 1
+            self.logic.input_volume_node = self.input_volume_node
+            if self.input_volumes_selected_counter >= 3:
+                self.all_volumes_selected()
+
+    def segmentation_selected(self, selectedFile):
             self.segmentation_node = slicer.util.loadSegmentation(selectedFile, properties={"show": False})
+            #self.set_origin(self.segmentation_node)
             if self.segmentation_node is not None:
                 if self.segmentation_node.IsA('vtkMRMLSegmentationNode'):
                     self.input_volumes_selected_counter +=1
@@ -106,15 +128,9 @@ class UVISWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
                 else:
                     slicer.util.warningDisplay("Please select segmentation.", windowTitle="Warning")
 
-    def onUncertaintyVolumeSelected(self):
-
-        dialog = qt.QFileDialog()
-        dialog.setFileMode(qt.QFileDialog.ExistingFile)
-
-        if dialog.exec_():
-            selectedFile = dialog.selectedFiles()[0]
+    def uncertainty_selected(self, selectedFile):
             uncertaintyNode = slicer.util.loadVolume(selectedFile, properties={"show": False})
-
+            self.align_volumes(uncertaintyNode)
             if uncertaintyNode is not None:
                 self.input_volumes_selected_counter +=1
                 if self.input_volumes_selected_counter >= 2:
@@ -123,6 +139,7 @@ class UVISWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
             # todo it should be independednt of nifti file
             self.uncertaintyArray = slicer.util.arrayFromVolume(uncertaintyNode)
             self.logic.uncertaintyNode = uncertaintyNode
+
             self.logic.uncertaintyVolumeSelectedInitialization()
 
             self.slider_setup_based_on_uncertainty_value(self.color_overlay_slider_control,
@@ -208,28 +225,28 @@ class UVISWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         self.surgeonCentricCollapsible.setVisible(True)
     def game_started(self):
 
-        self.game_type_label.setVisible(True)
-        self.game_type.setVisible(True)
-        self.game_leve_label.setVisible(True)
-        self.game_level.setVisible(True)
+      #  self.game_type_label.setVisible(True)
+      #  self.game_type.setVisible(True)
+    #    self.game_leve_label.setVisible(True)
+    #    self.game_level.setVisible(True)
         self.play_button.setVisible(True)
         self.reset_button.setVisible(True)
         self.save_button.setVisible(True)
-        self.play_game_with_ground_truth.setVisible(True)
+    #    self.play_game_with_ground_truth.setVisible(True)
         self.game_stop_button.setVisible(True)
         self.game_start_button.setVisible(False)
         self.game.game_started()
 
     def game_stopped(self):
 
-        self.game_type_label.setVisible(False)
-        self.game_type.setVisible(False)
-        self.game_leve_label.setVisible(False)
-        self.game_level.setVisible(False)
+     #   self.game_type_label.setVisible(False)
+      #  self.game_type.setVisible(False)
+     #   self.game_leve_label.setVisible(False)
+     #   self.game_level.setVisible(False)
         self.play_button.setVisible(False)
         self.reset_button.setVisible(False)
         self.save_button.setVisible(False)
-        self.play_game_with_ground_truth.setVisible(False)
+     #   self.play_game_with_ground_truth.setVisible(False)
         self.game_stop_button.setVisible(False)
         self.game_start_button.setVisible(True)
         self.game.game_stopped()
@@ -318,9 +335,9 @@ class UVISWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         self.select_uncertainty_button.setVisible(False)
         self.select_uncertainty_label.setVisible(False)
 
-        select_input_button.connect('clicked()', self.onInputImageSelected)
-        select_segmentation_button.connect('clicked()', self.onSegmentationSelected)
-        self.select_uncertainty_button.connect('clicked()', self.onUncertaintyVolumeSelected)
+        select_input_button.connect('clicked()', lambda: self.on_volume_selected_from_dir('input_volume'))
+        select_segmentation_button.connect('clicked()', lambda: self.on_volume_selected_from_dir('segmentation_volume'))
+        self.select_uncertainty_button.connect('clicked()', lambda: self.on_volume_selected_from_dir('uncertainty_volume'))
 
         self.blurinessColapsibbleButton = ctk.ctkCollapsibleButton()
         self.blurinessColapsibbleButton.text = "Volume Filtering"
@@ -648,37 +665,37 @@ class UVISWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         self.game_start_button = qt.QPushButton("Start")
         self.game_start_button.setFixedSize(50, 30)
 
-        self.game_type_label = qt.QLabel("Choose game type:")
-        self.game_type_label.setFixedSize(120, 30)
-        self.game_type_label.setVisible(False)
+#        self.game_type_label = qt.QLabel("Choose game type:")
+ #       self.game_type_label.setFixedSize(120, 30)
+  #      self.game_type_label.setVisible(False)
 
-        self.game_type = qt.QComboBox()
-        self.game_type.setFixedSize(120, 30)
-        self.game_type.addItem("Mining Game")
-        self.game_type.addItem("Medical Game")
-        self.game_type.setCurrentIndex(0)
-        self.game_type.setVisible(False)
+   #     self.game_type = qt.QComboBox()
+    #    self.game_type.setFixedSize(120, 30)
+     #   self.game_type.addItem("Mining Game")
+      #  self.game_type.addItem("Medical Game")
+       # self.game_type.setCurrentIndex(0)
+        #self.game_type.setVisible(False)
 
-        self.game_leve_label = qt.QLabel("Select Level:")
-        self.game_leve_label.setFixedSize(120, 30)
-        self.game_leve_label.setVisible(False)
+       # self.game_leve_label = qt.QLabel("Select Level:")
+       # self.game_leve_label.setFixedSize(120, 30)
+       # self.game_leve_label.setVisible(False)
 
-        self.game_level = qt.QComboBox()
-        self.game_level.setFixedSize(40, 30)
-        self.game_level.addItem("1")
-        self.game_level.addItem("2")
-        self.game_level.addItem("3")
-        self.game_level.addItem("4")
-        self.game_level.addItem("5")
-        self.game_level.addItem("6")
-        self.game_level.setCurrentIndex(0)
-        self.game_level.setVisible(False)
+    #    self.game_level = qt.QComboBox()
+    #    self.game_level.setFixedSize(40, 30)
+    #    self.game_level.addItem("1")
+    #    self.game_level.addItem("2")
+    #    self.game_level.addItem("3")
+    #    self.game_level.addItem("4")
+    #    self.game_level.addItem("5")
+    #    self.game_level.addItem("6")
+    #    self.game_level.setCurrentIndex(0)
+    #    self.game_level.setVisible(False)
 
-        self.play_game_with_ground_truth = qt.QCheckBox("Play Game with Ground Truth")
-        self.play_game_with_ground_truth.setFixedSize(250, 30)
-        self.play_game_with_ground_truth.setVisible(False)
-        self.play_game_with_ground_truth.toggled.connect(
-                  lambda: self.game.play_with_ground_truth_checked(self.play_game_with_ground_truth.isChecked()))
+    #    self.play_game_with_ground_truth = qt.QCheckBox("Play Game with Ground Truth")
+    #    self.play_game_with_ground_truth.setFixedSize(250, 30)
+    #    self.play_game_with_ground_truth.setVisible(False)
+    #    self.play_game_with_ground_truth.toggled.connect(
+     #             lambda: self.game.play_with_ground_truth_checked(self.play_game_with_ground_truth.isChecked()))
 
         self.game_start_button.clicked.connect(self.game_started)
 
@@ -720,11 +737,11 @@ class UVISWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
 
         gameLayout = qt.QGridLayout()
         gameLayout.addWidget(self.game_start_button, 0, 0)
-        gameLayout.addWidget(self.game_type_label, 1, 0)
-        gameLayout.addWidget(self.game_type, 1, 3)
-        gameLayout.addWidget(self.game_leve_label, 2, 0)
-        gameLayout.addWidget(self.game_level, 2, 3)
-        gameLayout.addWidget(self.play_game_with_ground_truth, 3, 0)
+     #   gameLayout.addWidget(self.game_type_label, 1, 0)
+    #    gameLayout.addWidget(self.game_type, 1, 3)
+    #    gameLayout.addWidget(self.game_leve_label, 2, 0)
+    #    gameLayout.addWidget(self.game_level, 2, 3)
+    #    gameLayout.addWidget(self.play_game_with_ground_truth, 3, 0)
         gameLayout.addWidget(self.play_button, 4, 0)
         gameLayout.addWidget(self.reset_button, 4, 1)
         #   gameLayout.addWidget(self.colorOverlay_checkBox, 2, 0)
@@ -751,10 +768,15 @@ class UVISLogic(ScriptedLoadableModuleLogic):
     def __init__(self):
 
         ScriptedLoadableModuleLogic.__init__(self)
+
+        #Volumes:
+        self.input_volume_node = None
+        self.uncertaintyNode = None
+        self.segmentation_node = None
+
+
         self.markupsNode = None
         self.crosshairNode = slicer.util.getNode("Crosshair")
-        self.uncertaintyNode = None
-        self.input_volume_node = None
         self.id = None
 
         self.uncertaintyForeground = None
@@ -765,7 +787,6 @@ class UVISLogic(ScriptedLoadableModuleLogic):
         self.tumorBasedViS = None
         self.numberOfActiveOnMouseMoveAtts = 0
 
-        self.segmentation_node = None
 
         # Link different views
         sliceCompositeNodes = slicer.util.getNodesByClass("vtkMRMLSliceCompositeNode")
@@ -803,7 +824,7 @@ class UVISLogic(ScriptedLoadableModuleLogic):
     def surgeonCentricModeSelected(self, isChecked):
 
         if isChecked:
-            self.uncertaintyForeground.setSurgeonCentricMode(isChecked)
+            self.uncertaintyForeground.set_surgeon_centric_mode(isChecked)
             #  if self.colorLUT.colorTableForSurgeonCentric is not None:
             #    self.uncertaintyForeground.displayNode.SetAndObserveColorNodeID(self.colorLUT.colorTableForSurgeonCentric.GetID())
 
@@ -818,14 +839,14 @@ class UVISLogic(ScriptedLoadableModuleLogic):
             if self.numberOfActiveOnMouseMoveAtts == 0:
                 self.crosshairNode.RemoveObserver(self.id)
 
-            self.uncertaintyForeground.setSurgeonCentricMode(isChecked)
+            self.uncertaintyForeground.set_surgeon_centric_mode(isChecked)
 
             self.uncertaintyForeground.visualize()
 
     def turn_visualization_off(self, isChecked):
 
         self.uncertaintyForeground.enable_color_overlay_foreground(isChecked)
-        self.logic.colorLUT.applyColorMap()
+        self.colorLUT.applyColorMap()
 
     def flicker_mode_selected(self, isChecked):
 

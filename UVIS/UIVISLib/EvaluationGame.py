@@ -39,9 +39,9 @@ class EvaluationGame():
        # self.gtMapVolume[(self.gtVolume <= 25)] = -1
        # self.gtMapVolume[(self.gtVolume >= 25) & (self.gtVolume <= 230)] = 0
 
-        self.totalScoreTextNode = slicer.util.getNode('totalScoreTextNode')
-        self.scoreTextNode = slicer.util.getNode('scoreTextNode')
-        self.UncertaintyTextNode = slicer.util.getNode('UncertaintyTextNode')
+        #self.totalScoreTextNode = slicer.util.getNode('totalScoreTextNode')
+       # self.scoreTextNode = slicer.util.getNode('scoreTextNode')
+       # self.UncertaintyTextNode = slicer.util.getNode('UncertaintyTextNode')
 
      #   self.uncertaintyMapNode = slicer.util.getNode('UncertaintyMapVolume')
     #    self.uncertaintyMapVolume = slicer.util.array('UncertaintyMapVolume')

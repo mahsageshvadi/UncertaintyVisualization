@@ -3,12 +3,15 @@ import enum
 import slicer
 import vtk
 import numpy as np
+
+
 class Button(enum.Enum):
     One = 1
     Two = 2
     TumorBigger = 3
     Tumor = 4
     TumorSmaller = 5
+
 
 class TumorBasedVis():
 
@@ -32,30 +35,29 @@ class TumorBasedVis():
         self.point_data = None
         self.normals = None
 
-       # self.temporary_init()
-      #  self.calculate_uncertatinty_volumes()
+        # self.temporary_init()
+        #  self.calculate_uncertatinty_volumes()
         self.segmentation_node = segmentation_node
         self.tumor_3D_model_node = None
         self.larger_model = None
         self.smaller_model = None
         self.generate_tumor_3D_model()
-        self.generate_offsets()
-
+       # self.generate_offsets()
 
     def test_new_offset_generation(self):
         labelMapVolumeNode = slicer.mrmlScene.AddNewNodeByClass('vtkMRMLLabelMapVolumeNode', 'LabelMap')
 
         # Step 4: Convert the segmentation to a label map
-        slicer.modules.segmentations.logic().ExportVisibleSegmentsToLabelmapNode(self.segmentation_node, labelMapVolumeNode)
+        slicer.modules.segmentations.logic().ExportVisibleSegmentsToLabelmapNode(self.segmentation_node,
+                                                                                 labelMapVolumeNode)
 
         pass
-
 
     def generate_tumor_3D_model(self):
 
         shNode = slicer.mrmlScene.GetSubjectHierarchyNode()
         exportFolderItemId = shNode.CreateFolderItem(shNode.GetSceneItemID(), "Segments")
-        slicer.modules.segmentations.logic().ExportAllSegmentsToModels(self.segmentation_node,exportFolderItemId)
+        slicer.modules.segmentations.logic().ExportAllSegmentsToModels(self.segmentation_node, exportFolderItemId)
         childItemIds = vtk.vtkIdList()
         shNode.GetItemChildren(exportFolderItemId, childItemIds, True)
         for i in range(childItemIds.GetNumberOfIds()):
@@ -116,9 +118,16 @@ class TumorBasedVis():
         volumeRasToIjk = vtk.vtkMatrix4x4()
 
         # todo: change this
+        labelMapVolumeNode = slicer.mrmlScene.AddNewNodeByClass('vtkMRMLabelMapVolumeNode', 'LabelMap')
+        slicer.modules.segmentations.logic().ExportVisibleSegmentsToLabelmapNode(self.segmentation_node, labelMapVolumeNode)
+        scalarVolumeNode = slicer.mrmlScene.AddNewNodeByClass('vtkMRMLScalarVolumeNode', 'NewScalarVolume')
+        volumesLogic = slicer.modules.volumes.logic()
+        volumesLogic.CreateScalarVolumeFromVolume(slicer.mrmlScene, scalarVolumeNode, labelMapVolumeNode)
+
         bigoff = slicer.util.array('NewScalarVolume')
         bigOffNode = slicer.util.getNode('NewScalarVolume')
 
+        print(num_points)
         for i in range(num_points):
 
             # Get ith point
@@ -141,12 +150,13 @@ class TumorBasedVis():
             volumeRasToIjk.MultiplyPoint(np.append(point, 1.0), point_Ijk)
             point_Ijk = [int(round(c)) for c in point_Ijk[0:3]]
 
-
             # Get uncertainty Value of ith point
             uncertainty_value = self.uncertainty_array[point_Ijk[2]][point_Ijk[1]][point_Ijk[0]] / 2
 
-            mask = self.shpere_mask(uncertainty_value)
-            bigoff[~mask] = 1
+           # mask  = self.create_sphere_mask(self.uncertainty_array.shape,(point_Ijk[2], point_Ijk[1], point_Ijk[0]), uncertainty_value)
+           # bigoff[~mask] = 1
+
+            # Apply the mask within the bounding box in the bigoff array
             slicer.util.updateVolumeFromArray(bigOffNode, bigoff)
 
             # Get normal of ith point
@@ -154,7 +164,7 @@ class TumorBasedVis():
             normals.GetTuple(i, normal)
 
             # Get unit_vect
-            unit_vec = self.getUnitVec(normal)
+            unit_vec = self.get_unit_vec(normal)
 
             # new point for bigger volume
             new_distance = [uncertainty_value * v for v in unit_vec]
@@ -176,18 +186,23 @@ class TumorBasedVis():
         # modelOutputPoly.Modified()
 
         slicer.app.processEvents()
-    def shpere_mask(self, radius):
 
-        center = (int(radius), int(radius), int(radius))
+    def create_sphere_mask(self, mask_size, center, radius):
 
-        gh = radius*2
-        Y, X, Z = np.ogrid[:gh, :gh, :gh]
-        dist_from_center = np.sqrt((X - center[0])**2 + (Y-center[1])**2 + (Z-center[1])**2)
+        a, b, c = center
 
-        mask = dist_from_center <= radius
+        # Create a meshgrid of indices
+        x, y, z = np.indices(mask_size)
 
-        return mask
-    def getUnitVec(self,normal):
+        # Calculate the distance from the center for each point
+        distances = np.sqrt((x - a) ** 2 + (y - b) ** 2 + (z - c) ** 2)
+
+        # Define the sphere: points within a distance r from the center
+        sphere_mask = distances <= radius
+
+        return sphere_mask
+
+    def get_unit_vec(self, normal):
 
         normal_magnitude = math.sqrt(sum(n ** 2 for n in normal))
 
@@ -220,7 +235,6 @@ class TumorBasedVis():
         self.model_bigger_points = self.modelOutputPoly.GetPoints()
         self.model_smaller_points = self.modelOutputPoly_small.GetPoints()
 
-
     def enable_tumorVIS(self, is_checked):
 
         if is_checked:
@@ -245,15 +259,12 @@ class TumorBasedVis():
             self.smaller_mode_display_node.VisibilityOff()
             self.smaller_mode_display_node.SetVisibility2D(False)
 
-
-
-
     def change_opacity_for_tumor_boundries(self, Button, opacity):
 
         if Button == Button.TumorBigger:
 
-            self.larger_mode_display_node.SetOpacity(opacity/100)
-            self.larger_mode_display_node.SetSliceIntersectionOpacity(opacity/100)
+            self.larger_mode_display_node.SetOpacity(opacity / 100)
+            self.larger_mode_display_node.SetSliceIntersectionOpacity(opacity / 100)
 
         elif Button == Button.Tumor:
 
@@ -262,13 +273,12 @@ class TumorBasedVis():
 
         elif Button == Button.TumorSmaller:
 
-            self.smaller_mode_display_node.SetOpacity(opacity/100)
-            self.smaller_mode_display_node.SetSliceIntersectionOpacity(opacity/100)
-
+            self.smaller_mode_display_node.SetOpacity(opacity / 100)
+            self.smaller_mode_display_node.SetSliceIntersectionOpacity(opacity / 100)
 
     def set_color(self, Button, color):
 
-        color = tuple(c/255 for c in color)
+        color = tuple(c / 255 for c in color)
 
         if Button == Button.TumorBigger:
 
@@ -281,7 +291,6 @@ class TumorBasedVis():
         elif Button == Button.TumorSmaller:
 
             self.smaller_mode_display_node.SetColor(color)
-
 
     def set_line_width(self, Button, width):
 

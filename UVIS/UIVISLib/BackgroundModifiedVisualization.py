@@ -1,8 +1,10 @@
 import numpy as np
 import slicer
-import os
 from scipy.ndimage import gaussian_filter
 
+from UIVISLib.UsefulFunctions import UsefulFunctions
+
+usefulFunctions = UsefulFunctions()
 
 class BackgroundModifiedVisualization():
 
@@ -10,11 +12,9 @@ class BackgroundModifiedVisualization():
 
         self.BackgroundModifedVisualization = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLScalarVolumeNode",
                                                                                  "BackgroundModifedVisualization")
-        #todo: change this
-        imageDirections = [[1, 0, 0], [0, 1, 0], [0, 0, 1]]
-        imageSpacing = [0.5, 0.5, 0.5]
-        self.BackgroundModifedVisualization.SetIJKToRASDirections(imageDirections)
-        self.BackgroundModifedVisualization.SetSpacing(imageSpacing)
+
+        usefulFunctions.align_volumes(self.BackgroundModifedVisualization)
+
 
         self.backgroundToBemodified = input_image_array
         self.mainBackground = input_image_node
