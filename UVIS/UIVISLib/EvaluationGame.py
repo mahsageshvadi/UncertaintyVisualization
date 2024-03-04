@@ -28,6 +28,17 @@ class EvaluationGame():
 
         self.play_with_ground_truth = None
 
+        self.mri_image_node = None
+        self.mri_image_volume = None
+        self.mri_image_volume_temp = None
+        self.gt_volume = None
+
+
+
+
+
+
+
         # self.userSeesGoldKaleVolume = slicer.util.array('UserSees_GoldKaleVolume')
       #  self.userSeesGoldKaleNode = slicer.util.getNode('UserSees_GoldKaleVolume')
 
@@ -75,9 +86,45 @@ class EvaluationGame():
         self.list_of_axesLength = []
         self.list_of_variation_volumes = []
 
-    def game_started(self):
+    def game_started(self, input_volume_node, input_volume_dir):
+
+        self.crosshairNode = slicer.util.getNode("Crosshair")
+        crosshairNodeId = self.crosshairNode.AddObserver(slicer.vtkMRMLCrosshairNode.CursorPositionModifiedEvent, self.onMouseMoved)
+
+        self.mri_image_node = input_volume_node
+        self.mri_image_volume = slicer.util.arrayFromVolume(input_volume_node)
+
+        self.mri_image_volume_temp = self.mri_image_volume.copy()
+
+        gt_label_dir = input_volume_dir.replace('pred', 'gt_label')
+        self.gt_label_volume_node  = slicer.util.loadVolume(gt_label_dir, properties={"show": False})
+        self.gt_label_volume_node.SetSpacing((0.5, 0.5, 0.5))
+        self.gt_label_volume_node.SetOrigin((0,0,0))
+        directionMatrix = [[1, 0, 0],
+                           [0, 1, 0],
+                           [0, 0, 1]]
+        self.gt_label_volume_node.SetIJKToRASDirections(directionMatrix[0][0], directionMatrix[0][1],
+                                                        directionMatrix[0][2],directionMatrix[1][0],
+                                                        directionMatrix[1][1], directionMatrix[1][2]
+                                                        ,directionMatrix[2][0], directionMatrix[2][1],
+                                                        directionMatrix[2][2])
+        gt_dir = input_volume_dir.replace('pred', 'gt')
+        self.gt_volume_node = slicer.util.loadVolume(gt_dir, properties={"show": False})
+        self.gt_volume_node.SetSpacing((0.5, 0.5, 0.5))
+        self.gt_volume_node.SetOrigin((0,0,0))
+        directionMatrix = [[1, 0, 0],
+                           [0, 1, 0],
+                           [0, 0, 1]]
+        self.gt_volume_node.SetIJKToRASDirections(directionMatrix[0][0], directionMatrix[0][1],
+                                                        directionMatrix[0][2],directionMatrix[1][0],
+                                                        directionMatrix[1][1], directionMatrix[1][2]
+                                                        ,directionMatrix[2][0], directionMatrix[2][1],
+                                                        directionMatrix[2][2])
+
+        self.gt_volume =  slicer.util.arrayFromVolume(self.gt_volume_node)
 
         #todo: change this
+        """
         self._game_volume_size = 300
 
         self.ground_truth_node = slicer.mrmlScene.AddNewNodeByClass('vtkMRMLScalarVolumeNode')
@@ -104,7 +151,7 @@ class EvaluationGame():
         slicer.util.setSliceViewerLayers(background=self.user_sees_node)
         slicer.util.setSliceViewerLayers(foreground=None)
         self.generate_ground_truth_level_1()
-
+"""
 
 
 
@@ -223,71 +270,35 @@ class EvaluationGame():
 
         self.crosshairNode.GetCursorPositionRAS(ras)
         volumeRasToIjk = vtk.vtkMatrix4x4()
-        self.user_sees_node.GetRASToIJKMatrix(volumeRasToIjk)
+        self.mri_image_node.GetRASToIJKMatrix(volumeRasToIjk)
 
         point_Ijk = [0, 0, 0, 1]
         volumeRasToIjk.MultiplyPoint(np.append(ras, 1.0), point_Ijk)
         point_Ijk = [int(round(c)) for c in point_Ijk[0:3]]
-        radius = 50
-        z_range = range(max(0, point_Ijk[2] - radius),
-                        min(self.user_sees_volume.shape[0], point_Ijk[2] + radius + 1))
-        y_range = range(max(0, point_Ijk[1] - radius),
-                        min(self.user_sees_volume.shape[1], point_Ijk[1] + radius + 1))
-        x_range = range(max(0, point_Ijk[0] - radius),
-                        min(self.user_sees_volume.shape[2], point_Ijk[0] + radius + 1))
+        radius = 2
+
+        z_range = range(max(0, point_Ijk[2] - radius), min(self.mri_image_volume.shape[0], point_Ijk[2] + radius + 1))
+        y_range = range(max(0, point_Ijk[1] - radius), min(self.mri_image_volume.shape[1], point_Ijk[1] + radius + 1))
+        x_range = range(max(0, point_Ijk[0] - radius), min(self.mri_image_volume.shape[2], point_Ijk[0] + radius + 1))
 
         score = 0
-
-        print(self.ground_truth_volume)
-        print(self.user_sees_volume)
         for z in z_range:
             for y in y_range:
                 for x in x_range:
                     if (x - point_Ijk[0]) ** 2 + (y - point_Ijk[1]) ** 2 + (z - point_Ijk[2]) ** 2 <= radius ** 2:
-                        tempScore = 0
-                        if not self.mindedPoints[z, y, x]:
-                            self.mindedPoints[z, y, x] = 1
-                            tempScore = self.calculate_score_for(self.ground_truth_volume[z, y, x],
-                                                                 self.user_sees_volume[z, y, x]) / 1000
+                        self.mri_image_volume[z, y, x] = -32768
+                        # uncertainty_volume[z,y,x] = 0.0
+                        if self.gt_volume[z, y, x] == 1:
+                            tempscore = 1
+                        else:
+                            score = -1
 
-                        if (tempScore > 0):
-                            self.isGainingScoreStarted = True
-                        if self.isGainingScoreStarted:
-                            score += tempScore
+                        if score < 0:
+                            score = -1
+                        else:
+                            score = 1
 
-                        self.user_sees_volume[z, y, x] = 255.0
-
-        if self.uncertainty_volume[point_Ijk[2]][point_Ijk[1]][
-            point_Ijk[0]] > 5 and self.isGainingScoreStarted and self.audioMode:
-            pass
-            # pygame.mixer.music.play()
-
-        self.totalScore += score
-        self.totalScoreTextNode.SetNthControlPointLabel(0, "$ " + str(round(self.totalScore)))
-        self.UncertaintyTextNode.SetNthControlPointLabel(0, u"\u00B1 " + str(
-            round(self.uncertainty_volume[point_Ijk[2]][point_Ijk[1]][point_Ijk[0]])))
-        self.UncertaintyTextNode.SetNthControlPointPosition(0, ras[0], ras[1], ras[2])
-
-        if score < 0 and self.isGainingScoreStarted:
-            self.scoreTextNode.GetDisplayNode().SetTextScale(5)
-            self.scoreTextNode.GetDisplayNode().SetSelectedColor(1, 0, 0)
-            self.scoreTextNode.GetDisplayNode().SetActiveColor(1, 0, 0)
-        else:
-            self.scoreTextNode.GetDisplayNode().SetTextScale(4)
-            self.scoreTextNode.GetDisNode().SetSelectedColor(0, 0, 0)
-            self.scoreTextNode.GetDisplayNode().SetActiveColor(0, 0, 0)
-
-        if score > 0:
-            self.scoreTextNode.SetNthControlPointLabel(0, "+" + str(round(score)))
-        elif score == 0:
-            self.scoreTextNode.SetNthControlPointLabel(0, "")
-        else:
-            self.numberOfDameges += 1
-            self.scoreTextNode.SetNthControlPointLabel(0, str(round(score)))
-
-        self.scoreTextNode.SetNthControlPointPosition(0, ras[0], ras[1], ras[2])
-
-        slicer.util.updateVolumeFromArray(self.user_sees_node, self.user_sees_volume)
+        slicer.util.updateVolumeFromArray(self.mri_image_node, self.mri_image_volume)
 
     def play(self):
 
@@ -344,11 +355,10 @@ class EvaluationGame():
     def reset(self):
 
         self.crosshairNode.RemoveAllObservers()
-        slicer.util.updateVolumeFromArray(self.user_sees_node, self.user_sees_volume)
-        self.user_sees_volume = self.user_sees_volume_temp
-        self.totalScore = 0
-        self.totalScoreTextNode.SetNthControlPointLabel(0, "$ " + str(self.totalScore))
-        self.numberOfDameges = 0
+        slicer.util.updateVolumeFromArray(self.mri_image_node, self.mri_image_volume_temp)
+        self.mri_image_volume = self.mri_image_volume_temp.copy()
+        #totalScore = 0
+       # totalScoreTextNode.SetNthControlPointLabel(0, "$ " + str(totalScore))
 
     def show_colorOverlay(self, isOn):
         if isOn:

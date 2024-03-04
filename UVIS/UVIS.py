@@ -63,7 +63,8 @@ class UVISWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         self.directionMatrix  = [[1, 0, 0],
                            [0, 1, 0],
                            [0, 0, 1]]
-
+        self.input_volume_dir = None
+        self.input_volume_node = None
 
 
     def onReload(self):
@@ -106,6 +107,7 @@ class UVISWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
 
     def input_volume_selected(self, selectedFile):
         self.input_volume_node = slicer.util.loadVolume(selectedFile, properties={"show": False})
+        self.input_volume_dir = selectedFile
         self.align_volumes(self.input_volume_node)
 
         self.input_volume_array = slicer.util.arrayFromVolume(self.input_volume_node)
@@ -140,17 +142,17 @@ class UVISWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
             self.uncertaintyArray = slicer.util.arrayFromVolume(uncertaintyNode)
             self.logic.uncertaintyNode = uncertaintyNode
 
-            self.logic.uncertaintyVolumeSelectedInitialization()
+            self.logic.uncertainty_volume_selected_initialization()
 
             self.slider_setup_based_on_uncertainty_value(self.color_overlay_slider_control,
                                                          self.uncertaintyArray.min(),
                                                          self.uncertaintyArray.max() + 1,
                                                          self.apply_initial_threshold_for_color_overlay)
 
-            self.slider_setup_based_on_uncertainty_value(self.sigma_slider,
-                                                         UVIS.utils.get_filter_levels()[0],
-                                                         UVIS.utils.get_filter_levels()[-1],
-                                                         self.filter_level_changed)
+         #   self.slider_setup_based_on_uncertainty_value(self.sigma_slider,
+                                          #               UVIS.utils.get_filter_levels()[0],
+                                            #             UVIS.utils.get_filter_levels()[-1],
+                                           #              self.filter_level_changed)
 
             self.slider_setup_based_on_uncertainty_value(self.bluriness_threshold_slider,
                                                          round(self.uncertaintyArray.min() - 1),
@@ -183,8 +185,8 @@ class UVISWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
             slider.setValue(value)
 
     def select_binary_color_map(self, is_checked):
-        self.logic.colorLUT.setisBinary(is_checked)
-        self.logic.colorLUT.applyColorMap()
+        self.logic.colorLUT.set_is_binary(is_checked)
+        self.logic.colorLUT.apply_color_map()
 
     def open_color_picker(self, Button):
         color_dialog = qt.QColorDialog()
@@ -197,13 +199,13 @@ class UVISWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         colorrgb = tuple(int(h[i:i + 2], 16) for i in (0, 2, 4))
 
         if Button == Button.One:
-            self.logic.colorLUT.setFirstColor(colorrgb)
-            self.logic.colorLUT.applyColorMap()
+            self.logic.colorLUT.set_first_color(colorrgb)
+            self.logic.colorLUT.apply_color_map()
 
         elif Button == Button.Two:
 
-            self.logic.colorLUT.setSecondColor(colorrgb)
-            self.logic.colorLUT.applyColorMap()
+            self.logic.colorLUT.set_second_color(colorrgb)
+            self.logic.colorLUT.apply_color_map()
         else:
             self.logic.tumorBasedViS.set_color(Button, colorrgb)
 
@@ -215,7 +217,7 @@ class UVISWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         self.mm_label_for_color_overlay.setText(f"{value} mm")
 
     def reset_colormap_selected(self):
-        self.logic.colorLUT.resetLUTTogrey()
+        self.logic.colorLUT.reset_lut_togrey()
         self.color_overlay_slider_control.setValue(self.uncertaintyArray.min())
 
     def all_volumes_selected(self):
@@ -235,7 +237,7 @@ class UVISWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
     #    self.play_game_with_ground_truth.setVisible(True)
         self.game_stop_button.setVisible(True)
         self.game_start_button.setVisible(False)
-        self.game.game_started()
+        self.game.game_started(self.input_volume_node, self.input_volume_dir)
 
     def game_stopped(self):
 
@@ -604,7 +606,7 @@ class UVISWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
 
         self.surgeonCentricCheckBox = qt.QCheckBox("Enable")
         self.surgeonCentricCheckBox.toggled.connect(
-            lambda: self.logic.surgeonCentricModeSelected(self.surgeonCentricCheckBox.isChecked()))
+            lambda: self.logic.surgeon_centric_mode_selected(self.surgeonCentricCheckBox.isChecked()))
 
         surgeonCentricModeLayout = qt.QGridLayout()
         surgeonCentricModeLayout.addWidget(self.surgeonCentricCheckBox, 0, 0, qt.Qt.AlignTop)
@@ -810,7 +812,7 @@ class UVISLogic(ScriptedLoadableModuleLogic):
     #  self.id = self.crosshairNode.AddObserver(slicer.vtkMRMLCrosshairNode.CursorPositionModifiedEvent, self.onMouseMoved)
     #  self.pointListNode = slicer.util.getNode("vtkMRMLMarkupsFiducialNode1")
 
-    def uncertaintyVolumeSelectedInitialization(self):
+    def uncertainty_volume_selected_initialization(self):
 
         self.uncertaintyForeground = UncertaintyForegroundVisualization(self.uncertaintyNode, self.input_volume_node)
         self.uncertaintyArray = slicer.util.arrayFromVolume(self.uncertaintyNode)
@@ -821,7 +823,7 @@ class UVISLogic(ScriptedLoadableModuleLogic):
         self.tumorBasedViS = TumorBasedVis(self.uncertaintyArray , self.segmentation_node)
         self.audioMode = AudioMode(self.uncertaintyArray)
 
-    def surgeonCentricModeSelected(self, isChecked):
+    def surgeon_centric_mode_selected(self, isChecked):
 
         if isChecked:
             self.uncertaintyForeground.set_surgeon_centric_mode(isChecked)
@@ -846,7 +848,7 @@ class UVISLogic(ScriptedLoadableModuleLogic):
     def turn_visualization_off(self, isChecked):
 
         self.uncertaintyForeground.enable_color_overlay_foreground(isChecked)
-        self.colorLUT.applyColorMap()
+        self.colorLUT.apply_color_map()
 
     def flicker_mode_selected(self, isChecked):
 
@@ -866,7 +868,7 @@ class UVISLogic(ScriptedLoadableModuleLogic):
 
     def text_mode_selected(self, in_checked):
 
-        self.markupVis.showMarkup(in_checked)
+        self.markupVis.show_markup(in_checked)
 
         if in_checked:
             if self.numberOfActiveOnMouseMoveAtts == 0:
@@ -914,7 +916,7 @@ class UVISLogic(ScriptedLoadableModuleLogic):
         if index == 4 or index == 5:
             index += 1
 
-        self.markupVis.changeGlyphType(index + 1)
+        self.markupVis.change_glyph_type(index + 1)
 
     def bluriness_number_of_section_changed(self, index, blurriness_intercity=1, not_bluredd_uncertainty_increase=0):
 
@@ -961,7 +963,7 @@ class UVISLogic(ScriptedLoadableModuleLogic):
         volumeRasToIjk.MultiplyPoint(np.append(ras, 1.0), point_Ijk)
         point_Ijk = [int(round(c)) for c in point_Ijk[0:3]]
 
-        self.markupVis.moveMarkup(ras, point_Ijk)
+        self.markupVis.move_markup(ras, point_Ijk)
 
         self.uncertaintyForeground.visualize(ras, point_Ijk)
         if self.uncertaintyForeground.is_color_overlay_surgeon_centric:

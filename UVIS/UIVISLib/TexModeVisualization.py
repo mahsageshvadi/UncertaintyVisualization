@@ -15,12 +15,13 @@ class TexModeVisualization():
 
         self.isOn = False
 
-    def showMarkup(self, isChecked):
+    def show_markup(self, isChecked):
 
         self.markupsNode.SetDisplayVisibility(isChecked)
         self.isOn = isChecked
 
-    def changeGlyphType(self, index):
+    def change_glyph_type(self, index):
+
 
         self.markupsNode.GetDisplayNode().SetGlyphType(index)
         if index == 6:
@@ -29,7 +30,7 @@ class TexModeVisualization():
         else:
             self.markupsNode.GetDisplayNode().SetOpacity(1)
 
-    def moveMarkup(self, ras, point_Ijk):
+    def move_markup(self, ras, point_Ijk):
 
         if self.isOn:
             try:

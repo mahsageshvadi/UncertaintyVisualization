@@ -15,31 +15,31 @@ class ColorLUT():
         self.oneColor = False
         self.isSurgeonCentric = False
 
-    def resetColors(self):
+    def reset_colors(self):
 
         self.firstColor = None
         self.secondColor = None
 
-    def resetLUTTogrey(self):
+    def reset_lut_togrey(self):
 
-        self.resetColors()
+        self.reset_colors()
         self.displayNode.SetAndObserveColorNodeID("vtkMRMLColorTableNodeGrey")
         self.displayNode.SetApplyThreshold(0)
 
-    def setSecondColor(self, secondColor):
+    def set_second_color(self, secondColor):
 
         self.secondColor = secondColor
         self.secondColor = tuple(component / 255 for component in self.secondColor)
 
-    def setFirstColor(self, firstColor):
+    def set_first_color(self, firstColor):
 
         self.firstColor = firstColor
         self.firstColor = tuple(component / 255 for component in self.firstColor)
 
-    def setisBinary(self, isBinary):
+    def set_is_binary(self, isBinary):
         self.isBinary = isBinary
 
-    def applyColorMap(self):
+    def apply_color_map(self):
 
         if self.firstColor is not None:
             slicer.mrmlScene.RemoveNode(self.colorTable)
@@ -59,12 +59,12 @@ class ColorLUT():
                 self.secondColor = [1.0, 1.0, 1.0]
 
             if self.isBinary:
-                self.applyBinary()
+                self.apply_binary()
 
             else:
-                self.applyGradient()
+                self.apply_gradient()
 
-    def applyGradient(self):
+    def apply_gradient(self):
 
         gradient = np.linspace(0, 1, 256)
         gradient_array = np.outer(gradient, self.firstColor) + np.outer((1 - gradient), self.secondColor)
@@ -90,7 +90,7 @@ class ColorLUT():
 
     # self.displayNode.SetThreshold(6, 10)
 
-    def applyBinary(self):
+    def apply_binary(self):
 
         for i in range(0, 255):
 
