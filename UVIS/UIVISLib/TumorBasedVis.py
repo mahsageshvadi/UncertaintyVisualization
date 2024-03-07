@@ -41,71 +41,71 @@ class TumorBasedVis():
         self.tumor_3D_model_node = None
         self.larger_model = None
         self.smaller_model = None
-        self.generate_tumor_3D_model()
-       # self.generate_offsets()
+        self.generate_tumor_3_d_model()
+        self.generate_offsets()
 
     def test_new_offset_generation(self):
-        labelMapVolumeNode = slicer.mrmlScene.AddNewNodeByClass('vtkMRMLLabelMapVolumeNode', 'LabelMap')
+        label_map_volume_node = slicer.mrmlScene.AddNewNodeByClass('vtkMRMLLabelMapVolumeNode', 'LabelMap')
 
         # Step 4: Convert the segmentation to a label map
         slicer.modules.segmentations.logic().ExportVisibleSegmentsToLabelmapNode(self.segmentation_node,
-                                                                                 labelMapVolumeNode)
+                                                                                 label_map_volume_node)
 
         pass
 
-    def generate_tumor_3D_model(self):
+    def generate_tumor_3_d_model(self):
 
-        shNode = slicer.mrmlScene.GetSubjectHierarchyNode()
-        exportFolderItemId = shNode.CreateFolderItem(shNode.GetSceneItemID(), "Segments")
-        slicer.modules.segmentations.logic().ExportAllSegmentsToModels(self.segmentation_node, exportFolderItemId)
-        childItemIds = vtk.vtkIdList()
-        shNode.GetItemChildren(exportFolderItemId, childItemIds, True)
-        for i in range(childItemIds.GetNumberOfIds()):
-            itemId = childItemIds.GetId(i)
-            dataNode = shNode.GetItemDataNode(itemId)
-            if dataNode:
-                if dataNode.IsA("vtkMRMLModelNode"):
-                    newName = "Tumor_3D_model".format(i)
-                    dataNode.SetName(newName)
-                    self.tumor_3D_model_node = self.clone_3D_model_node("Tumor_3D_model", dataNode)
+        sh_node = slicer.mrmlScene.GetSubjectHierarchyNode()
+        export_folder_item_id = sh_node.CreateFolderItem(sh_node.GetSceneItemID(), "Segments")
+        slicer.modules.segmentations.logic().ExportAllSegmentsToModels(self.segmentation_node, export_folder_item_id)
+        child_item_ids = vtk.vtkIdList()
+        sh_node.GetItemChildren(export_folder_item_id, child_item_ids, True)
+        for i in range(child_item_ids.GetNumberOfIds()):
+            item_id = child_item_ids.GetId(i)
+            data_node = sh_node.GetItemDataNode(item_id)
+            if data_node:
+                if data_node.IsA("vtkMRMLModelNode"):
+                    new_name = "Tumor_3D_model".format(i)
+                    data_node.SetName(new_name)
+                    self.tumor_3D_model_node = self.clone_3D_model_node("Tumor_3D_model", data_node)
                     self.tumor_3D_model_display_node = self.tumor_3D_model_node.GetDisplayNode()
 
-                    self.larger_model = self.clone_3D_model_node("Tumor_3D_model_bigger_offset", dataNode)
+                    self.larger_model = self.clone_3D_model_node("Tumor_3D_model_bigger_offset", data_node)
                     self.larger_mode_display_node = self.larger_model.GetDisplayNode()
 
-                    self.smaller_model = self.clone_3D_model_node("Tumor_3D_model_smaller_offset", dataNode)
+                    self.smaller_model = self.clone_3D_model_node("Tumor_3D_model_smaller_offset", data_node)
                     self.smaller_mode_display_node = self.smaller_model.GetDisplayNode()
 
-                    slicer.mrmlScene.RemoveNode(dataNode)
+                    slicer.mrmlScene.RemoveNode(data_node)
 
     def clone_3D_model_node(self, name, originalModelNode):
 
-        clonedNode = slicer.vtkMRMLModelNode()
-        clonedNode.Copy(originalModelNode)
+        cloned_node = slicer.vtkMRMLModelNode()
+        cloned_node.Copy(originalModelNode)
 
         if originalModelNode.GetPolyData():
-            clonedPolyData = vtk.vtkPolyData()
-            clonedPolyData.DeepCopy(originalModelNode.GetPolyData())
-            clonedNode.SetAndObservePolyData(clonedPolyData)
-        clonedNode.SetName(name)
-        slicer.mrmlScene.AddNode(clonedNode)
+            cloned_poly_data = vtk.vtkPolyData()
+            cloned_poly_data.DeepCopy(originalModelNode.GetPolyData())
+            cloned_node.SetAndObservePolyData(cloned_poly_data)
+        cloned_node.SetName(name)
+        slicer.mrmlScene.AddNode(cloned_node)
 
-        originalDisplayNode = originalModelNode.GetDisplayNode()
-        if originalDisplayNode:
-            clonedDisplayNode = slicer.vtkMRMLModelDisplayNode()
-            clonedDisplayNode.Copy(originalDisplayNode)
-            slicer.mrmlScene.AddNode(clonedDisplayNode)
-            clonedNode.SetAndObserveDisplayNodeID(clonedDisplayNode.GetID())
+        original_display_node = originalModelNode.GetDisplayNode()
+        if original_display_node:
+            cloned_display_node = slicer.vtkMRMLModelDisplayNode()
+            cloned_display_node.Copy(original_display_node)
+            slicer.mrmlScene.AddNode(cloned_display_node)
+            cloned_node.SetAndObserveDisplayNodeID(cloned_display_node.GetID())
 
-        return clonedNode
+        return cloned_node
 
     def generate_offsets(self):
         tumor_model_poly_data = self.tumor_3D_model_node.GetPolyData()
         bigger_offset_poly_data = self.larger_model.GetPolyData()
         smaller_offset_poly_data = self.smaller_model.GetPolyData()
 
-        list_of_RAS_points_bigger_vol = []
-        list_of_RAS_points_smaller_vol = []
+        list_of_ras_points_bigger_vol = []
+        list_of_ras_points_smaller_vol = []
 
         points = tumor_model_poly_data.GetPoints()
         point_data = tumor_model_poly_data.GetPointData()
@@ -115,19 +115,20 @@ class TumorBasedVis():
 
         model_output_points = bigger_offset_poly_data.GetPoints()
         model_output_points_small = smaller_offset_poly_data.GetPoints()
-        volumeRasToIjk = vtk.vtkMatrix4x4()
+        volume_ras_to_ijk = vtk.vtkMatrix4x4()
 
         # todo: change this
-        labelMapVolumeNode = slicer.mrmlScene.AddNewNodeByClass('vtkMRMLabelMapVolumeNode', 'LabelMap')
-        slicer.modules.segmentations.logic().ExportVisibleSegmentsToLabelmapNode(self.segmentation_node, labelMapVolumeNode)
-        scalarVolumeNode = slicer.mrmlScene.AddNewNodeByClass('vtkMRMLScalarVolumeNode', 'NewScalarVolume')
-        volumesLogic = slicer.modules.volumes.logic()
-        volumesLogic.CreateScalarVolumeFromVolume(slicer.mrmlScene, scalarVolumeNode, labelMapVolumeNode)
+       # label_map_volume_node = slicer.mrmlScene.AddNewNodeByClass('vtkMRMLabelMapVolumeNode', 'LabelMap')
+       # slicer.modules.segmentations.logic().ExportVisibleSegmentsToLabelmapNode(self.segmentation_node, label_map_volume_node)
+        bigOffNode = slicer.mrmlScene.AddNewNodeByClass('vtkMRMLScalarVolumeNode', 'NewScalarVolume')
+       # volumes_logic = slicer.modules.volumes.logic()
+       # volumes_logic.CreateScalarVolumeFromVolume(slicer.mrmlScene, scalar_volume_node, label_map_volume_node)
 
-        bigoff = slicer.util.array('NewScalarVolume')
-        bigOffNode = slicer.util.getNode('NewScalarVolume')
+        bigoff = np.zeros(shape = (self.uncertainty_array.shape[0], self.uncertainty_array.shape[1], self.uncertainty_array.shape[2]))
+
 
         print(num_points)
+        counter = 0
         for i in range(num_points):
 
             # Get ith point
@@ -135,29 +136,31 @@ class TumorBasedVis():
             points.GetPoint(i, point)
 
             if 1 == 0:
-                markupsNode = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLMarkupsFiducialNode")
-                markupsNode.AddControlPoint([0, 0, 0])
-                markupsNode.SetDisplayVisibility(True)
-                markupsNode.GetDisplayNode().SetTextScale(0)
-                markupsNode.GetDisplayNode().SetSelectedColor(1, 0, 0)
-                markupsNode.GetDisplayNode().SetActiveColor(1, 0, 0)
-                markupsNode.GetDisplayNode().SetUseGlyphScale(0)
-                markupsNode.GetDisplayNode().SetGlyphSize(0.1)
-                markupsNode.SetNthControlPointPosition(0, point[2], point[1], point[0])
+                markups_node = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLMarkupsFiducialNode")
+                markups_node.AddControlPoint([0, 0, 0])
+                markups_node.SetDisplayVisibility(True)
+                markups_node.GetDisplayNode().SetTextScale(0)
+                markups_node.GetDisplayNode().SetSelectedColor(1, 0, 0)
+                markups_node.GetDisplayNode().SetActiveColor(1, 0, 0)
+                markups_node.GetDisplayNode().SetUseGlyphScale(0)
+                markups_node.GetDisplayNode().SetGlyphSize(0.1)
+                markups_node.SetNthControlPointPosition(0, point[2], point[1], point[0])
 
             # Get ijk of ith point
             point_Ijk = [0, 0, 0, 1]
-            volumeRasToIjk.MultiplyPoint(np.append(point, 1.0), point_Ijk)
+            volume_ras_to_ijk.MultiplyPoint(np.append(point, 1.0), point_Ijk)
             point_Ijk = [int(round(c)) for c in point_Ijk[0:3]]
 
             # Get uncertainty Value of ith point
             uncertainty_value = self.uncertainty_array[point_Ijk[2]][point_Ijk[1]][point_Ijk[0]] / 2
 
-           # mask  = self.create_sphere_mask(self.uncertainty_array.shape,(point_Ijk[2], point_Ijk[1], point_Ijk[0]), uncertainty_value)
-           # bigoff[~mask] = 1
+            if counter % 100 == 0:
+                print("Hiiii")
+                mask  = self.create_sphere_mask(self.uncertainty_array.shape,(point_Ijk[2], point_Ijk[1], point_Ijk[0]), uncertainty_value * 100)
+                bigoff[~mask] = 1
 
+            counter += 1
             # Apply the mask within the bounding box in the bigoff array
-            slicer.util.updateVolumeFromArray(bigOffNode, bigoff)
 
             # Get normal of ith point
             normal = [0.0, 0.0, 0.0]
@@ -169,16 +172,18 @@ class TumorBasedVis():
             # new point for bigger volume
             new_distance = [uncertainty_value * v for v in unit_vec]
             new_point_bigger = [p + d for p, d in zip(point, new_distance)]
-            list_of_RAS_points_bigger_vol.append(new_point_bigger)
+            list_of_ras_points_bigger_vol.append(new_point_bigger)
             model_output_points.SetPoint(i, new_point_bigger)
 
             # new point for smaller volume
             flipped_unit_vec = [-v for v in unit_vec]
             new_distance_smaller = [uncertainty_value * v for v in flipped_unit_vec]
             new_point_smaller = [p2 + d2 for p2, d2 in zip(point, new_distance_smaller)]
-            list_of_RAS_points_smaller_vol.append(new_point_smaller)
+            list_of_ras_points_smaller_vol.append(new_point_smaller)
 
             model_output_points_small.SetPoint(i, new_point_smaller)
+
+        slicer.util.updateVolumeFromArray(bigOffNode, bigoff)
 
         smaller_offset_poly_data.GetPoints().Modified()
 
