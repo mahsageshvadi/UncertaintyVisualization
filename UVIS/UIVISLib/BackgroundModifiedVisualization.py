@@ -13,13 +13,25 @@ class BackgroundModifiedVisualization():
         self.BackgroundModifedVisualization = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLScalarVolumeNode",
                                                                                  "BackgroundModifedVisualization")
 
-        usefulFunctions.align_volumes(self.BackgroundModifedVisualization)
+        self.origin = (0, 0, 0)
+        self.spacing = (0.5, 0.5, 0.5)
+        self.directionMatrix  = [[1, 0, 0],
+                           [0, 1, 0],
+                           [0, 0, 1]]
+
+        self.BackgroundModifedVisualization.SetSpacing(self.spacing)
+        self.BackgroundModifedVisualization.SetOrigin(self.origin)
+        self.BackgroundModifedVisualization.SetIJKToRASDirections(self.directionMatrix[0][0], self.directionMatrix[0][1],
+                                          self.directionMatrix[0][2],
+                                          self.directionMatrix[1][0], self.directionMatrix[1][1],
+                                          self.directionMatrix[1][2],
+                                          self.directionMatrix[2][0], self.directionMatrix[2][1],
+                                          self.directionMatrix[2][2])
 
 
         self.backgroundToBemodified = input_image_array
         self.mainBackground = input_image_node
         self.origin = self.mainBackground.GetOrigin()
-        self.BackgroundModifedVisualization.SetOrigin(self.origin)
         self.uncertaintyArray = uncertainty_array
 
         self.initializeFilteringVariables()

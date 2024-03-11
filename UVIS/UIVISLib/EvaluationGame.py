@@ -14,7 +14,7 @@ class GameType(Enum):
 
 class EvaluationGame():
 
-    def __init__(self):
+    def __init__(self, uncertainty_array, input_volume_dir):
 
         self.game_type = None
         self.crosshairNode = slicer.util.getNode("Crosshair")
@@ -38,6 +38,9 @@ class EvaluationGame():
         self.initialize_scoring_texts()
 
         self.totalScore = 0
+        self.uncertainty_array = uncertainty_array
+        self.input_volume_dir = input_volume_dir
+        self.get_ground_truth_from_dir()
 
         # self.userSeesGoldKaleVolume = slicer.util.array('UserSees_GoldKaleVolume')
       #  self.userSeesGoldKaleNode = slicer.util.getNode('UserSees_GoldKaleVolume')
@@ -112,19 +115,9 @@ class EvaluationGame():
         self.scoreTextNode.GetDisplayNode().SetGlyphSize(4)
         self.scoreTextNode.SetNthControlPointLabel(0, "")
 
-
-    def game_started(self, input_volume_node, input_volume_dir):
-
-        self.crosshairNode = slicer.util.getNode("Crosshair")
-
-        crosshairNodeId = self.crosshairNode.AddObserver(slicer.vtkMRMLCrosshairNode.CursorPositionModifiedEvent, self.onMouseMoved)
-
-        self.mri_image_node = input_volume_node
-        self.mri_image_volume = slicer.util.arrayFromVolume(input_volume_node)
-
-        self.mri_image_volume_temp = self.mri_image_volume.copy()
-
-        gt_label_dir = input_volume_dir.replace('pred', 'gt_label')
+    def get_ground_truth_from_dir(self):
+        gt_label_dir = self.input_volume_dir.replace('pred', 'gt_label')
+        gt_label_dir = self.input_volume_dir.replace('pred', 'gt_label')
         self.gt_label_volume_node  = slicer.util.loadVolume(gt_label_dir, properties={"show": False})
         self.gt_label_volume_node.SetSpacing((0.5, 0.5, 0.5))
         self.gt_label_volume_node.SetOrigin((0,0,0))
@@ -136,7 +129,7 @@ class EvaluationGame():
                                                         directionMatrix[1][1], directionMatrix[1][2]
                                                         ,directionMatrix[2][0], directionMatrix[2][1],
                                                         directionMatrix[2][2])
-        gt_dir = input_volume_dir.replace('pred', 'gt')
+        gt_dir = self.input_volume_dir.replace('pred', 'gt')
         self.gt_volume_node = slicer.util.loadVolume(gt_dir, properties={"show": False})
         self.gt_volume_node.SetSpacing((0.5, 0.5, 0.5))
         self.gt_volume_node.SetOrigin((0,0,0))
@@ -180,13 +173,26 @@ class EvaluationGame():
         slicer.util.setSliceViewerLayers(foreground=None)
         self.generate_ground_truth_level_1()
 """
+    def play(self, uncertainty_array, input_node):
 
+        self.uncertainty_array = uncertainty_array
+        self.mri_image_node = input_node
+        self.mri_image_volume = slicer.util.arrayFromVolume(input_node)
+        self.mri_image_volume_temp = self.mri_image_volume.copy()
+        self.mindedPoints = np.zeros(shape=(self.uncertainty_array.shape[0], self.uncertainty_array.shape[1], 3))
+      #  self.generate_user_sees()
+        self.crosshairNodeId = self.crosshairNode.AddObserver(slicer.vtkMRMLCrosshairNode.CursorPositionModifiedEvent,
+                                                              self.onMouseMoved)
+
+        self.isGainingScoreStarted = False
+        self.totalScore = 0
+        self.setupGameScene()
 
 
     def game_stopped(self):
         slicer.mrmlScene.RemoveNode(self.ground_truth_node )
         slicer.mrmlScene.RemoveNode(self.user_sees_node )
-        slicer.mrmlScene.RemoveNode(self.uncertainty_node )
+       # slicer.mrmlScene.RemoveNode(self.uncertainty_node )
 
     def play_with_ground_truth_checked(self, is_Checked):
         self.play_with_ground_truth = is_Checked
@@ -332,15 +338,7 @@ class EvaluationGame():
         self.scoreTextNode.SetNthControlPointPosition(0, ras[0], ras[1], ras[2])
         slicer.util.updateVolumeFromArray(self.mri_image_node, self.mri_image_volume)
 
-    def play(self):
 
-        self.mindedPoints = np.zeros(shape=(self._game_volume_size, self._game_volume_size, 3))
-        self.generate_user_sees()
-        self.crosshairNodeId = self.crosshairNode.AddObserver(slicer.vtkMRMLCrosshairNode.CursorPositionModifiedEvent,
-                                                              self.onMouseMoved)
-        self.isGainingScoreStarted = False
-        self.totalScore = 0
-        self.setupGameScene()
 
     # NSCursor.hide()
     def generate_user_sees(self):

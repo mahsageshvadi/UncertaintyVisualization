@@ -6,6 +6,7 @@ import imp
 import os
 
 from UIVISLib.UncertaintyForegroundVisualization import UncertaintyForegroundVisualization
+from UIVISLib.BackgroundModifiedVisualization import BackgroundModifiedVisualization
 from UIVISLib.TexModeVisualization import TexModeVisualization
 from UIVISLib.ColorLUT import ColorLUT
 from UIVISLib.AudioMode import AudioMode
@@ -142,7 +143,7 @@ class UVISWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
             self.uncertaintyArray = slicer.util.arrayFromVolume(uncertaintyNode)
             self.logic.uncertaintyNode = uncertaintyNode
 
-            self.logic.uncertainty_volume_selected_initialization()
+            self.logic.uncertainty_volume_selected_initialization(self.input_volume_dir)
 
             self.slider_setup_based_on_uncertainty_value(self.color_overlay_slider_control,
                                                          self.uncertaintyArray.min(),
@@ -237,7 +238,7 @@ class UVISWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
     #    self.play_game_with_ground_truth.setVisible(True)
         self.game_stop_button.setVisible(True)
         self.game_start_button.setVisible(False)
-        self.game.game_started(self.input_volume_node, self.input_volume_dir)
+      #  self.game.game_started(self.input_volume_node, self.input_volume_dir)
 
     def game_stopped(self):
 
@@ -251,7 +252,8 @@ class UVISWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
      #   self.play_game_with_ground_truth.setVisible(False)
         self.game_stop_button.setVisible(False)
         self.game_start_button.setVisible(True)
-        self.game.game_stopped()
+        self.logic.game.game_stopped()
+        self.logic.game.reset()
 
         # Tumor based functions
 
@@ -658,7 +660,6 @@ class UVISWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
 
         self.layout.addStretch(1)
 
-        self.game = EvaluationGame()
         gameCollapsibleButton = ctk.ctkCollapsibleButton()
         gameCollapsibleButton.text = "Game Evaluation"
         self.layout.addWidget(gameCollapsibleButton)
@@ -703,17 +704,17 @@ class UVISWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
 
         self.play_button = qt.QPushButton("Play")
         self.play_button.setFixedSize(50, 30)
-        self.play_button.clicked.connect(self.game.play)
+        self.play_button.clicked.connect(self.logic.play_game)
         self.play_button.setVisible(False)
 
         self.save_button = qt.QPushButton("Save")
         self.save_button.setFixedSize(50, 30)
-        self.save_button.clicked.connect(self.game.save_data)
+        self.save_button.clicked.connect(self.logic.save_data)
         self.save_button.setVisible(False)
 
         self.reset_button = qt.QPushButton("Reset")
         self.reset_button.setFixedSize(50, 30)
-        self.reset_button.clicked.connect(self.game.reset)  # Connect to your reset_game function
+        self.reset_button.clicked.connect(self.logic.reset)  # Connect to your reset_game function
         self.reset_button.setVisible(False)
 
         self.game_stop_button = qt.QPushButton("End the game")
@@ -812,14 +813,15 @@ class UVISLogic(ScriptedLoadableModuleLogic):
     #  self.id = self.crosshairNode.AddObserver(slicer.vtkMRMLCrosshairNode.CursorPositionModifiedEvent, self.onMouseMoved)
     #  self.pointListNode = slicer.util.getNode("vtkMRMLMarkupsFiducialNode1")
 
-    def uncertainty_volume_selected_initialization(self):
+    def uncertainty_volume_selected_initialization(self, input_volume_dir):
 
         self.uncertaintyForeground = UncertaintyForegroundVisualization(self.uncertaintyNode, self.input_volume_node)
         self.uncertaintyArray = slicer.util.arrayFromVolume(self.uncertaintyNode)
         self.markupVis = TexModeVisualization(self.uncertaintyArray)
         self.colorLUT = ColorLUT(self.uncertaintyForeground.uncertaintyVISVolumeNode)
-        #self.backgroundModifiedVisualization = BackgroundModifiedVisualization(self.uncertaintyArray,
-        #                                                                       self.input_image_array, self.input_image_node)
+        self.game = EvaluationGame(self.uncertaintyArray, input_volume_dir)
+        self.backgroundModifiedVisualization = BackgroundModifiedVisualization(self.uncertaintyArray,
+                                                                               self.input_image_array, self.input_image_node)
         self.tumorBasedViS = TumorBasedVis(self.uncertaintyArray , self.segmentation_node)
         self.audioMode = AudioMode(self.uncertaintyArray)
 
@@ -978,3 +980,11 @@ class UVISLogic(ScriptedLoadableModuleLogic):
         self.audioMode.performAudioMode(point_Ijk)
 
         self.uncertaintyForeground.perform_flicker_if_uncertainty_more_than_threshold(point_Ijk)
+
+    def save_data(self):
+        self.game.save_data()
+    def play_game(self):
+        self.game.play(self.uncertaintyArray, self.input_volume_node)
+
+    def reset(self):
+        self.game.reset()
