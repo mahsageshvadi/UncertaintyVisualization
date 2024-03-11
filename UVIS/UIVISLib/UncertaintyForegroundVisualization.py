@@ -3,7 +3,6 @@ import slicer
 import qt
 
 
-
 class UncertaintyForegroundVisualization():
     color_overlay_surgeon_centric_mask_margin = 10
     FLICKER_INTERVAL_MS = 400
@@ -47,7 +46,6 @@ class UncertaintyForegroundVisualization():
                                              self.directionMatrix[1][0], self.directionMatrix[1][1], self.directionMatrix[1][2],
                                              self.directionMatrix[2][0], self.directionMatrix[2][1], self.directionMatrix[2][2])
 
-
     def initialize_color_overlay_surgeon_centric(self):
         self.mask = self.shpere_mask(self.color_overlay_surgeon_centric_mask_margin)
         self.is_color_overlay_surgeon_centric = False
@@ -90,10 +88,10 @@ class UncertaintyForegroundVisualization():
 
     def shpere_mask(self, radius):
 
-        center = (int(radius), int(radius), int(radius))
+        center = (2, int(radius), int(radius))
 
         gh = radius * 2
-        Y, X, Z = np.ogrid[:gh, :gh, :gh]
+        Y, X, Z = np.ogrid[:2, :gh, :gh]
         dist_from_center = np.sqrt((X - center[0]) ** 2 + (Y - center[1]) ** 2 + (Z - center[1]) ** 2)
 
         mask = dist_from_center <= radius
@@ -102,27 +100,31 @@ class UncertaintyForegroundVisualization():
 
     def visualize(self, ras=[1.0, 1.0, 1.0], point_Ijk=[0, 0, 0]):
 
-        if self.is_color_overlay_surgeon_centric:
-            try:
+
+        if  self.is_color_overlay_surgeon_centric:
+
+            #try:
 
                 uncertaintyArray_croped = self.surgeon_centric_array_calculation(point_Ijk)
                 self.update_foreground_with_uncertainty_array(uncertaintyArray_croped)
                 slicer.util.setSliceViewerLayers(foreground=self.uncertaintyVISVolumeNode, foregroundOpacity=0.5)
 
                 self.uncertaintyVISVolumeNode.SetOrigin(
-                    [ras[0] - (self.surgeonCentricMargin / 2), ras[1] - (self.surgeonCentricMargin / 2),
-                     ras[2] - (self.surgeonCentricMargin / 2)])
+                    [(ras[0] - (self.color_overlay_surgeon_centric_mask_margin / 2)), (ras[1] - (self.color_overlay_surgeon_centric_mask_margin / 2)),
+                     0])
 
-            except Exception as e:
-                pass
+
+           # except Exception as e:
+            #    pass
         else:
 
-            slicer.util.setSliceViewerLayers(foreground=self.uncertaintyVISVolumeNode, foregroundOpacity=0.0)
+           # slicer.util.setSliceViewerLayers(foreground=self.uncertaintyVISVolumeNode, foregroundOpacity=0.0)
 
             self.update_foreground_with_uncertainty_array(self.uncertaintyArray)
             self.uncertaintyVISVolumeNode.SetOrigin(self.origin)
 
     def enable_disable_flicker_mode(self, is_checked):
+
         self.flicker_is_enabled = is_checked
         if not is_checked:
             self.stop_flicker()
@@ -150,7 +152,7 @@ class UncertaintyForegroundVisualization():
         # slicer.util.setSliceViewerLayers(foreground=self.uncertaintyVISVolumeNode, foregroundOpacity=0.5)
         self.current_visibility = False
 
-    #    self.uncertaintyVISVolumeNode.SetOrigin([ras[0]-(self.surgeonCentricMargin/2), ras[1]-(self.surgeonCentricMargin/2), ras[2]-(self.surgeonCentricMargin/2)])
+    #    self.uncertaintyVISVolumeNode.SetOrigin([ras[0]-(color_overlay_surgeon_centric_mask_margin/2), ras[1]-(color_overlay_surgeon_centric_mask_margin/2), ras[2]-(color_overlay_surgeon_centric_mask_margin/2)])
 
     def toggle_flicker(self):
 
@@ -166,14 +168,14 @@ class UncertaintyForegroundVisualization():
 
     def surgeon_centric_array_calculation(self, point_Ijk):
 
-        lefti = point_Ijk[0] - self.surgeonCentricMargin
-        righti = point_Ijk[0] + self.surgeonCentricMargin
+        lefti = point_Ijk[0] - self.color_overlay_surgeon_centric_mask_margin
+        righti = point_Ijk[0] + self.color_overlay_surgeon_centric_mask_margin
 
-        leftj = point_Ijk[1] - self.surgeonCentricMargin
-        rigthj = point_Ijk[1] + self.surgeonCentricMargin
+        leftj = point_Ijk[1] - self.color_overlay_surgeon_centric_mask_margin
+        rigthj = point_Ijk[1] + self.color_overlay_surgeon_centric_mask_margin
 
-        leftk = point_Ijk[2] - self.surgeonCentricMargin
-        rightk = point_Ijk[2] + self.surgeonCentricMargin
+        leftk = point_Ijk[2] - self.color_overlay_surgeon_centric_mask_margin
+        rightk = point_Ijk[2] + self.color_overlay_surgeon_centric_mask_margin
 
         if lefti < 0:
             lefti = 0
@@ -198,4 +200,3 @@ class UncertaintyForegroundVisualization():
         self.displayNode.SetApplyThreshold(1)
         self.displayNode.SetLowerThreshold(threshold)
 
-# Different filters

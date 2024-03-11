@@ -31,7 +31,6 @@ class TexModeVisualization():
             self.markupsNode.GetDisplayNode().SetOpacity(1)
 
     def move_markup(self, ras, point_Ijk):
-
         if self.isOn:
             try:
 

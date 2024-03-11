@@ -33,11 +33,11 @@ class EvaluationGame():
         self.mri_image_volume_temp = None
         self.gt_volume = None
 
+        self.totalScoreTextNode = None
+        self.scoreTextNode = None
+        self.initialize_scoring_texts()
 
-
-
-
-
+        self.totalScore = 0
 
         # self.userSeesGoldKaleVolume = slicer.util.array('UserSees_GoldKaleVolume')
       #  self.userSeesGoldKaleNode = slicer.util.getNode('UserSees_GoldKaleVolume')
@@ -86,9 +86,37 @@ class EvaluationGame():
         self.list_of_axesLength = []
         self.list_of_variation_volumes = []
 
+    def initialize_scoring_texts(self):
+
+        self.totalScoreTextNode = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLMarkupsFiducialNode")
+        self.totalScoreTextNode.SetName("totalScoreTextNode")
+
+        self.totalScoreTextNode.AddControlPoint([0, 0, 0])
+        self.totalScoreTextNode.GetDisplayNode().SetUseGlyphScale(0)
+        self.totalScoreTextNode.GetDisplayNode().SetGlyphType(3)
+        self.totalScoreTextNode.GetDisplayNode().SetSelectedColor(0, 0, 0)
+        self.totalScoreTextNode.GetDisplayNode().SetActiveColor(0, 0, 0)
+        self.totalScoreTextNode.GetDisplayNode().SetTextScale(3.5)
+        self.totalScoreTextNode.SetNthControlPointLabel(0, "$ 0")
+
+        self.scoreTextNode = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLMarkupsFiducialNode")
+        self.scoreTextNode.SetName("scoreTextNode")
+
+        self.scoreTextNode.AddControlPoint([0, 0, 0])
+        # scoreTextNode.SetDisplayVisibility(False)
+        self.scoreTextNode.GetDisplayNode().SetGlyphType(6)
+        self.scoreTextNode.GetDisplayNode().SetSelectedColor(0, 0, 0)
+        self.scoreTextNode.GetDisplayNode().SetActiveColor(0, 0, 0)
+        self.scoreTextNode.GetDisplayNode().SetTextScale(4)
+        self.scoreTextNode.GetDisplayNode().SetOpacity(0.7)
+        self.scoreTextNode.GetDisplayNode().SetGlyphSize(4)
+        self.scoreTextNode.SetNthControlPointLabel(0, "")
+
+
     def game_started(self, input_volume_node, input_volume_dir):
 
         self.crosshairNode = slicer.util.getNode("Crosshair")
+
         crosshairNodeId = self.crosshairNode.AddObserver(slicer.vtkMRMLCrosshairNode.CursorPositionModifiedEvent, self.onMouseMoved)
 
         self.mri_image_node = input_volume_node
@@ -286,7 +314,7 @@ class EvaluationGame():
             for y in y_range:
                 for x in x_range:
                     if (x - point_Ijk[0]) ** 2 + (y - point_Ijk[1]) ** 2 + (z - point_Ijk[2]) ** 2 <= radius ** 2:
-                        self.mri_image_volume[z, y, x] = -32768
+                        self.mri_image_volume[z, y, x] = self.mri_image_volume.min()
                         # uncertainty_volume[z,y,x] = 0.0
                         if self.gt_volume[z, y, x] == 1:
                             tempscore = 1
@@ -298,6 +326,10 @@ class EvaluationGame():
                         else:
                             score = 1
 
+        self.totalScore += score
+        print(self.totalScore)
+        self.totalScoreTextNode.SetNthControlPointLabel(0, "$ " + str(round(self.totalScore)))
+        self.scoreTextNode.SetNthControlPointPosition(0, ras[0], ras[1], ras[2])
         slicer.util.updateVolumeFromArray(self.mri_image_node, self.mri_image_volume)
 
     def play(self):
@@ -357,8 +389,8 @@ class EvaluationGame():
         self.crosshairNode.RemoveAllObservers()
         slicer.util.updateVolumeFromArray(self.mri_image_node, self.mri_image_volume_temp)
         self.mri_image_volume = self.mri_image_volume_temp.copy()
-        #totalScore = 0
-       # totalScoreTextNode.SetNthControlPointLabel(0, "$ " + str(totalScore))
+        self.totalScore = 0
+        self.totalScoreTextNode.SetNthControlPointLabel(0, "$ " + str(self.totalScore))
 
     def show_colorOverlay(self, isOn):
         if isOn:

@@ -966,6 +966,7 @@ class UVISLogic(ScriptedLoadableModuleLogic):
         self.markupVis.move_markup(ras, point_Ijk)
 
         self.uncertaintyForeground.visualize(ras, point_Ijk)
+        '''
         if self.uncertaintyForeground.is_color_overlay_surgeon_centric:
             if self.colorLUT.colorTableForSurgeonCentric is not None:
                 self.uncertaintyForeground.displayNode.AutoWindowLevelOff()
@@ -973,7 +974,7 @@ class UVISLogic(ScriptedLoadableModuleLogic):
                 self.uncertaintyForeground.displayNode.SetInterpolate(True)
                 self.uncertaintyForeground.displayNode.SetAndObserveColorNodeID(
                     self.colorLUT.colorTableForSurgeonCentric.GetID())
-
+        '''
         self.audioMode.performAudioMode(point_Ijk)
 
         self.uncertaintyForeground.perform_flicker_if_uncertainty_more_than_threshold(point_Ijk)

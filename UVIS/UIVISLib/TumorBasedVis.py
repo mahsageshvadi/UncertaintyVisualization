@@ -121,10 +121,16 @@ class TumorBasedVis():
        # label_map_volume_node = slicer.mrmlScene.AddNewNodeByClass('vtkMRMLabelMapVolumeNode', 'LabelMap')
        # slicer.modules.segmentations.logic().ExportVisibleSegmentsToLabelmapNode(self.segmentation_node, label_map_volume_node)
         bigOffNode = slicer.mrmlScene.AddNewNodeByClass('vtkMRMLScalarVolumeNode', 'NewScalarVolume')
+        testNode = slicer.mrmlScene.AddNewNodeByClass('vtkMRMLScalarVolumeNode', 'testNode')
+        testNode.SetSpacing((0.5, 0.5, 0.5))
+
+        bigOffNode.SetSpacing((0.5, 0.5, 0.5))
        # volumes_logic = slicer.modules.volumes.logic()
        # volumes_logic.CreateScalarVolumeFromVolume(slicer.mrmlScene, scalar_volume_node, label_map_volume_node)
 
-        bigoff = np.zeros(shape = (self.uncertainty_array.shape[0], self.uncertainty_array.shape[1], self.uncertainty_array.shape[2]))
+        bigoff = np.zeros(shape=(self.uncertainty_array.shape[0],
+                                 self.uncertainty_array.shape[1],
+                                 self.uncertainty_array.shape[2]), dtype=np.float32)
 
 
         print(num_points)
@@ -148,16 +154,30 @@ class TumorBasedVis():
 
             # Get ijk of ith point
             point_Ijk = [0, 0, 0, 1]
-            volume_ras_to_ijk.MultiplyPoint(np.append(point, 1.0), point_Ijk)
+            volume_ras_to_ijk.MultiplyPoint(np.append(point, 2.0), point_Ijk)
+            print("Point IJK 1: " + str(point_Ijk))
+
             point_Ijk = [int(round(c)) for c in point_Ijk[0:3]]
 
-            # Get uncertainty Value of ith point
-            uncertainty_value = self.uncertainty_array[point_Ijk[2]][point_Ijk[1]][point_Ijk[0]] / 2
 
-            if counter % 100 == 0:
-                print("Hiiii")
-                mask  = self.create_sphere_mask(self.uncertainty_array.shape,(point_Ijk[2], point_Ijk[1], point_Ijk[0]), uncertainty_value * 100)
-                bigoff[~mask] = 1
+            print("Point: " + str(point))
+            print("Point IJK 2: " + str(point_Ijk))
+            print("Uncertainty value: " + str(self.uncertainty_array[point_Ijk[2]][point_Ijk[1]][point_Ijk[0]]))
+
+            # Get uncertainty Value of ith point
+            uncertainty_value = self.uncertainty_array[ -point_Ijk[2]][-point_Ijk[1]][-point_Ijk[0]]
+
+            radius = round(uncertainty_value)*20
+            mask = self.shpere_mask(radius)
+
+            integer_mask = mask.astype(np.float32)/num_points
+
+            bigoff[:,point_Ijk[1] - radius: point_Ijk[1] + radius, point_Ijk[0] - radius: point_Ijk[0] +radius] += integer_mask
+           # mask = self.sphere_mask(512, 2, 512 - point_Ijk[0], 512 - point_Ijk[1], uncertainty_value)
+
+          #  bigoff +=integer_mask
+
+            # bigoff[~mask] = 1.0
 
             counter += 1
             # Apply the mask within the bounding box in the bigoff array
@@ -182,18 +202,20 @@ class TumorBasedVis():
             list_of_ras_points_smaller_vol.append(new_point_smaller)
 
             model_output_points_small.SetPoint(i, new_point_smaller)
+       # bigoff += integer_mask
+
+        slicer.util.updateVolumeFromArray(testNode, integer_mask)
 
         slicer.util.updateVolumeFromArray(bigOffNode, bigoff)
 
         smaller_offset_poly_data.GetPoints().Modified()
-
         bigger_offset_poly_data.GetPoints().Modified()
         # modelOutputPoly.Modified()
 
         slicer.app.processEvents()
 
     def create_sphere_mask(self, mask_size, center, radius):
-
+        # Unpack the center coordinates
         a, b, c = center
 
         # Create a meshgrid of indices
@@ -202,10 +224,22 @@ class TumorBasedVis():
         # Calculate the distance from the center for each point
         distances = np.sqrt((x - a) ** 2 + (y - b) ** 2 + (z - c) ** 2)
 
-        # Define the sphere: points within a distance r from the center
+        # Create a mask for points inside the sphere
         sphere_mask = distances <= radius
 
         return sphere_mask
+
+    def shpere_mask(self, radius):
+
+        center = (int(radius), int(radius), int(radius))
+
+        gh = radius * 2
+        Y, X, Z = np.ogrid[:2, :gh, :gh]
+        dist_from_center = np.sqrt((X - center[0]) ** 2 + (Y - center[1]) ** 2 + (Z - center[1]) ** 2)
+
+        mask = dist_from_center <= radius
+
+        return mask
 
     def get_unit_vec(self, normal):
 
