@@ -1,5 +1,6 @@
 import numpy as np
 import slicer
+import vtk
 import qt
 
 
@@ -14,12 +15,14 @@ class UncertaintyForegroundVisualization():
         self.already_in_flicker = None
         self.initialize_color_overlay_surgeon_centric()
         self.initialize_flicker_mode()
+        self.input_image_node = input_image_node
         # Node to display uncertainty in this layer
         self.uncertaintyVISVolumeNode = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLScalarVolumeNode",
                                                                            'Uncertainty_Foreground')
+        self.align_volume_based_on_input_node(self.uncertaintyVISVolumeNode, input_image_node)
+
         #self.origin = input_image_node.GetOrigin()
         #self.uncertaintyVISVolumeNode.SetOrigin(self.origin)
-        self.uncertaintyVISVolumeNode.SetSpacing((0.5, 0.5, 0.5))
         # Node for the main uncertainty
         self.uncertaintyNode = None
         # array for the main uncertainty
@@ -32,19 +35,18 @@ class UncertaintyForegroundVisualization():
         self.update_foreground_with_uncertainty_array(self.uncertaintyArray)
         self.initiate_uncertainty_vis_volume_node()
         self.displayNode = self.uncertaintyVISVolumeNode.GetDisplayNode()
-        self.origin = (0, 0, 0)
-        self.spacing = (0.5, 0.5, 0.5)
-        self.directionMatrix  = [[1, 0, 0],
-                           [0, 1, 0],
-                           [0, 0, 1]]
+        self.red_composite_node = slicer.mrmlScene.GetNodeByID('vtkMRMLSliceCompositeNodeRed')
 
+        self.is_color_overlay_active = False
+    def align_volume_based_on_input_node(self, volume_node, input_image_node):
 
-    def align_volumes(self, volume_node):
-            volume_node.SetSpacing(self.spacing)
-            volume_node.SetOrigin(self.origin)
-            volume_node.SetIJKToRASDirections(self.directionMatrix[0][0], self.directionMatrix[0][1], self.directionMatrix[0][2],
-                                             self.directionMatrix[1][0], self.directionMatrix[1][1], self.directionMatrix[1][2],
-                                             self.directionMatrix[2][0], self.directionMatrix[2][1], self.directionMatrix[2][2])
+        origin = input_image_node.GetOrigin()
+        spacing = input_image_node.GetSpacing()
+        directionMatrix = vtk.vtkMatrix4x4()
+        input_image_node.GetIJKToRASDirectionMatrix(directionMatrix)
+        volume_node.SetOrigin(origin)
+        volume_node.SetSpacing(spacing)
+        volume_node.SetIJKToRASDirectionMatrix(directionMatrix)
 
     def initialize_color_overlay_surgeon_centric(self):
         self.mask = self.shpere_mask(self.color_overlay_surgeon_centric_mask_margin)
@@ -75,6 +77,7 @@ class UncertaintyForegroundVisualization():
 
     def enable_color_overlay_foreground(self, is_checked):
 
+        self.is_color_overlay_active = is_checked
         if not is_checked:
             slicer.util.setSliceViewerLayers(foreground=self.uncertaintyVISVolumeNode, foregroundOpacity=0.0)
         else:
@@ -89,7 +92,6 @@ class UncertaintyForegroundVisualization():
     def shpere_mask(self, radius):
 
         center = (2, int(radius), int(radius))
-
         gh = radius * 2
         Y, X, Z = np.ogrid[:2, :gh, :gh]
         dist_from_center = np.sqrt((X - center[0]) ** 2 + (Y - center[1]) ** 2 + (Z - center[1]) ** 2)
@@ -100,8 +102,7 @@ class UncertaintyForegroundVisualization():
 
     def visualize(self, ras=[1.0, 1.0, 1.0], point_Ijk=[0, 0, 0]):
 
-
-        if  self.is_color_overlay_surgeon_centric:
+        if self.is_color_overlay_surgeon_centric:
 
             #try:
 
@@ -121,7 +122,6 @@ class UncertaintyForegroundVisualization():
            # slicer.util.setSliceViewerLayers(foreground=self.uncertaintyVISVolumeNode, foregroundOpacity=0.0)
 
             self.update_foreground_with_uncertainty_array(self.uncertaintyArray)
-            self.uncertaintyVISVolumeNode.SetOrigin(self.origin)
 
     def enable_disable_flicker_mode(self, is_checked):
 
@@ -200,3 +200,17 @@ class UncertaintyForegroundVisualization():
         self.displayNode.SetApplyThreshold(1)
         self.displayNode.SetLowerThreshold(threshold)
 
+    def game_level_changes_uncertainty_foreground(self, uncertainty_node, input_image_node):
+
+        self.align_volume_based_on_input_node(self.uncertaintyVISVolumeNode, input_image_node)
+        self.initialize_nodes(uncertainty_node)
+        self.update_foreground_with_uncertainty_array(self.uncertaintyArray)
+
+        self.red_composite_node.SetForegroundVolumeID(self.uncertaintyVISVolumeNode.GetID())
+
+        if self.is_color_overlay_active:
+            self.red_composite_node.SetForegroundOpacity(0.4)
+
+        else:
+
+            self.red_composite_node.SetForegroundOpacity(0.0)

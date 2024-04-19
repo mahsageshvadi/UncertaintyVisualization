@@ -53,3 +53,7 @@ class AudioMode():
                         self.inSafeArea = True
         except Exception as e:
             pass
+
+    def game_level_changes_audio_mode(self, uncertaintyArray):
+
+        self.uncertaintyArray = uncertaintyArray

@@ -94,7 +94,7 @@ if __name__ == '__main__':
     image_array_data = image_array_file.get_data()
 
     uncertainty_array_file = nib.load('/Users/mahsa/BWH/Data/gp_uncertainty.nii')
-    uncertainty_array_data = uncertainty_array_file.get_fdata()
+    uncertainty_array_data = uncertainty_array_file.get_data()
 
     calculateAllFiltersClass = CalculateAllFilters(image_array_data, uncertainty_array_data)
     calculateAllFiltersClass.filter_calculations_initialization()

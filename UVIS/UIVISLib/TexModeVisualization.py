@@ -38,10 +38,14 @@ class TexModeVisualization():
                     round(self.uncertaintyArray[point_Ijk[2]][point_Ijk[1]][point_Ijk[0]])) + " mm")
                 self.markupsNode.SetNthControlPointPosition(0, ras[0], ras[1], ras[2])
                 self.markupsNode.GetDisplayNode().SetGlyphSize(
-                    round(self.uncertaintyArray[point_Ijk[2]][point_Ijk[1]][point_Ijk[0]], 2))
+                    round(self.uncertaintyArray[point_Ijk[2]][point_Ijk[1]][point_Ijk[0]]*2, 2))
 
             except Exception as e:
                 pass
+
+    def game_level_changes_text_mode(self, uncertaintyArray):
+        self.uncertaintyArray = uncertaintyArray
+
 
     #   self.markupsNode.GetDisplayNode().SetViewNodeIDs(["vtkMRMLSliceNodeRed"])
 

@@ -237,6 +237,7 @@
 
               </widget>
             </item>
+            <!--
             <item row="1" column="0">
               <widget class="QLabel" name="Segmentation_input_label">
                 <property name="text">
@@ -253,7 +254,7 @@
                 </property>
 
               </widget>
-            </item>
+            </item>-->
             <item row="2" column="0">
               <widget class="QLabel" name="Uncertainty_volume_Label">
                 <property name="text">

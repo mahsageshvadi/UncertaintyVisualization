@@ -7,5 +7,6 @@ UVIS/__pycache__/
 *.DS_Store
 *.mp3
 Data/FilteredVolumes/
+UVIS/UIVISLib/Data/
 ~                                                                                                                                               
 ~         

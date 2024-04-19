@@ -1,92 +1,192 @@
 import numpy as np
+import os
 import slicer
+import vtk
 from scipy.ndimage import gaussian_filter
 
 from UIVISLib.UsefulFunctions import UsefulFunctions
 
 usefulFunctions = UsefulFunctions()
 
+
 class BackgroundModifiedVisualization():
 
     def __init__(self, uncertainty_array, input_image_array, input_image_node):
 
+        self.current_filter_threshold = None
+        self.filterType = None
+        self.mainBackground = input_image_node
+
         self.BackgroundModifedVisualization = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLScalarVolumeNode",
                                                                                  "BackgroundModifedVisualization")
 
-        self.origin = (0, 0, 0)
-        self.spacing = (0.5, 0.5, 0.5)
-        self.directionMatrix  = [[1, 0, 0],
-                           [0, 1, 0],
-                           [0, 0, 1]]
+        self.align_volume_based_on_input_node(self.BackgroundModifedVisualization)
+        self.backgroundToBeModified = input_image_array
+        self.uncertainty_array = uncertainty_array
+        self.filter_types = ['Light', 'Noise', 'Blur']
+        self.filter_levels = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+        self.levels = {
 
-        self.BackgroundModifedVisualization.SetSpacing(self.spacing)
-        self.BackgroundModifedVisualization.SetOrigin(self.origin)
-        self.BackgroundModifedVisualization.SetIJKToRASDirections(self.directionMatrix[0][0], self.directionMatrix[0][1],
-                                          self.directionMatrix[0][2],
-                                          self.directionMatrix[1][0], self.directionMatrix[1][1],
-                                          self.directionMatrix[1][2],
-                                          self.directionMatrix[2][0], self.directionMatrix[2][1],
-                                          self.directionMatrix[2][2])
+            '0': 'Case020',
+            '1': 'Case015',
+            '2': 'Case097',
+            '3': 'Case112'
+        }
 
-
-        self.backgroundToBemodified = input_image_array
-        self.mainBackground = input_image_node
-        self.origin = self.mainBackground.GetOrigin()
-        self.uncertaintyArray = uncertainty_array
-
-        self.initializeFilteringVariables()
-        self.nonBinaryModeInitiation()
-
-    def initializeFilteringVariables(self):
+        self.filtered_all_volumes = []
 
         self.numberOfSections = 2
         self.sigmas = [0, 3]
         self.bluredArrays = []
         self.masks = []
-        self.uncertaintyBorders = [self.uncertaintyArray.min(), 4, self.uncertaintyArray.max()]
+        self.uncertaintyBorders = [self.uncertainty_array.min(), 4, self.uncertainty_array.max()]
         self.masked_uncertainty_volumes = []
         self.blured_masked_volumes = []
         self.current_filter_level = 0
-        self.current_filter_thershold = round(self.uncertaintyArray.min())
-        self.filterType = "Blur"
-        self.filteredAllVolumes = {'Blur': np.load('/Users/mahsa/BWH/Silcer/Uncertainty_VIS/Data/FilteredVolumes/FilteredVolumesBlur-filteredVolumes.npy'),
-               'Noise': np.load('/Users/mahsa/BWH/Silcer/Uncertainty_VIS/Data/FilteredVolumes'
-                                '/FilteredVolumesNoise-filteredVolumes.npy'),
-               'Light': np.load('/Users/mahsa/BWH/Silcer/Uncertainty_VIS/Data/FilteredVolumes'
-                                '/FilteredVolumesLight-filteredVolumes.npy')}
+        self.current_filter_threshold = round(self.uncertainty_array.min())
+        self.filter_type = "Blur"
+     #   self.input_file_name = input_volume_dir.split('/')[-1]
+        self.initialize_filtered_volumes()
+        self.red_composite_node = slicer.mrmlScene.GetNodeByID('vtkMRMLSliceCompositeNodeRed')
+        self.layoutManager = slicer.app.layoutManager()
+        # self.non_binary_mode_initiation()
 
-        self.currentFilteredVolume = self.filteredAllVolumes['Blur'][0][:][:][:]
-
-
-    def getCurrentAllVolumes(self, filter_type):
-
-        return self.filteredAllVolumes
+        self.current_level = 0
+        self.current_filtered_volume = self.filtered_all_volumes[self.current_level]['Blur'][0][:][:][:]
+        slicer.util.setSliceViewerLayers(background=self.mainBackground)
 
 
-    def setBlurringVariables(self, sigmas, uncertaintyBorders):
+    def align_volume_based_on_input_node(self, volume_node):
+
+        origin = self.mainBackground.GetOrigin()
+        spacing = self.mainBackground.GetSpacing()
+        directionMatrix = vtk.vtkMatrix4x4()
+        self.mainBackground.GetIJKToRASDirectionMatrix(directionMatrix)
+        volume_node.SetOrigin(origin)
+        volume_node.SetSpacing(spacing)
+        volume_node.SetIJKToRASDirectionMatrix(directionMatrix)
+
+    def initialize_filtered_volumes(self):
+        project_root = os.path.dirname(__file__)
+
+        for i in range(len(self.levels)):
+
+            input_file_name = list(self.levels.items())[i][1] + '_0_pred.nii'
+
+            filterd_volume_path = project_root + '/Data/' + input_file_name + '/'
+            if os.path.exists(filterd_volume_path):
+
+                self.filtered_all_volumes.append({'Blur': np.load(filterd_volume_path + '/Blur-filteredVolumes.npy'),
+                                             'Noise': np.load(filterd_volume_path + '/Noise-filteredVolumes.npy'),
+                                             'Light': np.load(filterd_volume_path + '/Light-filteredVolumes.npy')})
+
+            else:
+                os.makedirs(filterd_volume_path)
+                self.filter_calculations_initialization(filterd_volume_path, i)
+
+    def filter_calculations_initialization(self, filterd_volume_path, i):
+
+        image_array_copy = self.backgroundToBeModified.copy()
+        sigma_values = self.generate_sigma_values(1, self.uncertainty_array)
+        filter_threshold_max = round(self.uncertainty_array.max())
+        filter_threshold_min = round(self.uncertainty_array.min())
+        for filter_type in self.filter_types:
+            filtered_volumes_for_file = []
+            for filter_level in self.filter_levels:
+                for filter_threshold in range(filter_threshold_min, filter_threshold_max):
+                    # get all the filter possibilities with different threshold between
+                    # min and max and different filter levels
+                    filtered_volume_list, filtered_volume_index_list = self.get_all_filtered_volumes_and_index(
+                        filter_type, image_array_copy, sigma_values, filter_level, filter_threshold)
+                    # now we have all possibilities then we should assign each sigma uncertainty value with the
+                    # corresponding filtered volume
+                    final_filtered_volume = self.calculate_final_filtered_volume(self.backgroundToBeModified,
+                                                                                 sigma_values,
+                                                                                 filtered_volume_index_list,
+                                                                                 filtered_volume_list)
+                    filtered_volumes_for_file.append(final_filtered_volume)
+
+            file_name = filter_type + '-filteredVolumes.npy'
+            file_path = filterd_volume_path + file_name
+            np.save(file_path, filtered_volumes_for_file)
+
+            self.filtered_all_volumes[i][filter_type] = filtered_volumes_for_file
+
+    def generate_sigma_values(self, decimal_place, uncertainty_array):
+
+        return np.round(uncertainty_array, decimal_place)
+
+    def get_all_filtered_volumes_and_index(self, filter_type, image_array_copy, sigma_values, filter_level,
+                                           filter_threshold):
+
+        filtered_volume_list = []
+        filtered_volume_index_list = []
+
+        for i in np.unique(sigma_values):
+            if filter_type == "Light":
+                filtered_volume_list.append(
+                    self.adjust_brightness(image_array_copy, sigma_values.max(), i, filter_threshold))
+            elif filter_type == "Noise":
+                if i < filter_threshold:
+                    filtered_volume_list.append(image_array_copy)
+                else:
+                    filtered_volume_list.append(self.add_gaussian_noise(image_array_copy, mean=0,
+                                                                        std=(i - filter_threshold) * (
+                                                                                    70 * filter_level + 2.5)))
+            elif filter_type == "Blur":
+                filtered_volume_list.append(gaussian_filter(image_array_copy,
+                                                            sigma=(i - filter_threshold) * (0.25 * (filter_level + 1))))
+
+            filtered_volume_index_list.append(i)
+
+        return filtered_volume_list, filtered_volume_index_list
+
+    def calculate_final_filtered_volume(self, image_volume, sigma_values, filtered_volume_index_list,
+                                        filtered_volume_list):
+
+        depth, height, width = image_volume.shape
+        filtered_volume = np.zeros(shape=(depth, height, width))
+
+        for k in range(depth):
+            for j in range(height):
+                for i in range(width):
+                    sigma_value = sigma_values[k, j, i]
+                    index = filtered_volume_index_list.index(sigma_value)
+                    filtered_volume[k, j, i] = filtered_volume_list[index][k, j, i]
+
+        return filtered_volume
+
+    def adjust_brightness(self, volume, sigma_max, sigma_value, filter_threshold):
+
+        factor = (sigma_max - sigma_value) / sigma_max
+        return (volume * factor) - filter_threshold * 10
+
+    def add_gaussian_noise(self, volume, mean=0, std=1):
+
+        noise = np.random.normal(mean, std, size=volume.shape)
+        return volume + noise
+
+    def set_blurring_variables(self, sigmas, uncertaintyBorders):
 
         self.sigmas = sigmas
         self.uncertaintyBorders = uncertaintyBorders
 
-    def setFilterType(self, filter_type):
-        self.filterType = filter_type
+    def set_filter_type(self, filter_type):
 
-        self.filteredAllVolumes = self.getCurrentAllVolumes(filter_type)
-        self.currentFilteredVolume = self.filteredAllVolumes[filter_type][0][:][:][:]
+        self.filter_type = filter_type
+        self.current_filtered_volume = self.filtered_all_volumes[self.current_level][filter_type][0][:][:][:]
 
-
-    def resetBlurringVariables(self):
+    def reset_blurring_variables(self):
 
         self.bluredArrays = []
         self.masks = []
         self.masked_uncertainty_volumes = []
         self.blured_masked_volumes = []
 
+    def non_binary_mode_initiation(self):
 
-    def nonBinaryModeInitiation(self):
-
-        self.backgroundToBemodifiedCopy = self.backgroundToBemodified.copy()
-        self.sigma_values = self.uncertaintyArray.copy()
+        self.backgroundToBemodifiedCopy = self.backgroundToBeModified.copy()
+        self.sigma_values = self.uncertainty_array.copy()
         self.sigma_values = np.round(self.sigma_values, 1)
         max_sigma = np.max(self.sigma_values).astype(int)
 
@@ -111,32 +211,41 @@ class BackgroundModifiedVisualization():
     def filter_level_changed(self, filter_level):
         self.current_filter_level = filter_level
 
-        if self.filterType == 'Light':
-            self.currentFilteredVolume = (
-                    self.filteredAllVolumes[self.filterType][8-(self.current_filter_thershold  -1)][:][:][:])
+        if self.filter_type == 'Light':
+            self.current_filtered_volume = (
+                self.filtered_all_volumes[self.current_level][self.filter_type][8 - (self.current_filter_threshold - 1)][:][:][:])
         else:
-            self.currentFilteredVolume = self.filteredAllVolumes[self.filterType][filter_level* 9 + (self.current_filter_thershold-round(self.uncertaintyArray.min() -1))][:][:][:]
-        self.visualizeFilteredBackground()
+            #self.current_filtered_volume = self.filtered_all_volumes[self.filter_type][filter_level * 9 + (
+                  #      self.current_filter_threshold - round(self.uncertainty_array.min() - 1))][:][:][:]
+            self.current_filtered_volume = self.filtered_all_volumes[self.current_level][self.filter_type][
+                (filter_level *round(self.uncertainty_array.max()))+ self.current_filter_threshold]
+
+            self.visualize_filtered_background()
 
     def filter_threshold_changed(self, filter_threshold):
-        self.current_filter_thershold = filter_threshold
+        self.current_filter_threshold = filter_threshold
 
-        if self.filterType == 'Light':
-            self.currentFilteredVolume = (
-                    self.filteredAllVolumes[self.filterType][8-(self.current_filter_thershold  -1)][:][:][:])
+        if self.filter_type == 'Light':
+            self.current_filtered_volume = (
+                self.filtered_all_volumes[self.current_level][self.filter_type][8 - (self.current_filter_threshold - 1)][:][:][:])
         else:
-            self.currentFilteredVolume = self.filteredAllVolumes[self.filterType][self.current_filter_level* 9 + (self.current_filter_thershold -round(self.uncertaintyArray.min() -1))][:][:][:]
-        self.visualizeFilteredBackground()
+            self.current_filtered_volume = self.filtered_all_volumes[self.current_level][self.filter_type][
+                (self.current_filter_level *round(self.uncertainty_array.max()))+ self.current_filter_threshold]
+        self.visualize_filtered_background()
 
-    def visualizeFilteredBackground(self, sigmas=None, uncertaintyBorders=None, numberOfSections=None):
+    def visualize_filtered_background(self, numberOfSections=None):
 
         if numberOfSections is not None:
             self.numberOfSections = numberOfSections
 
-        slicer.util.updateVolumeFromArray(self.BackgroundModifedVisualization, self.currentFilteredVolume)
+        slicer.util.updateVolumeFromArray(self.BackgroundModifedVisualization, self.current_filtered_volume)
 
-        self.resetBlurringVariables()
-        slicer.util.setSliceViewerLayers(background=self.BackgroundModifedVisualization)
+        self.reset_blurring_variables()
+        #slicer.util.setSliceViewerLayers(background=self.BackgroundModifedVisualization)
+
+        self.red_composite_node.SetBackgroundVolumeID(self.BackgroundModifedVisualization.GetID())
+        current_silce = self.layoutManager.sliceWidget('Red')
+        current_silce.fitSliceToBackground()
 
     """
         if sigmas is not None and uncertaintyBorders is not None:
@@ -181,8 +290,32 @@ class BackgroundModifiedVisualization():
 
     """
 
+    def turn_blured_visualization_off(self):
 
-    def turnBluredVisualizationOff(self):
+        self.red_composite_node.SetBackgroundVolumeID(self.mainBackground.GetID())
 
-        slicer.util.setSliceViewerLayers(background=self.mainBackground)
+      #  slicer.util.setSliceViewerLayers(background=self.mainBackground)
 
+    def get_current_filtered_node(self):
+
+        return self.BackgroundModifedVisualization
+
+    def game_level_changes_background_modified(self, uncertainty_array, input_image_node, level):
+
+        self.current_level = level
+        self.uncertainty_array = uncertainty_array
+        self.backgroundToBeModified = slicer.util.arrayFromVolume(input_image_node)
+        self.mainBackground = input_image_node
+        self.align_volume_based_on_input_node(self.BackgroundModifedVisualization)
+
+        self.uncertaintyBorders = [self.uncertainty_array.min(), 4, self.uncertainty_array.max()]
+      #  input_file_name = list(self.levels.items())[level][1] +'_0_pred.nii'
+      #  self.initialize_filtered_volumes()
+
+        if self.filter_type == 'Light':
+            self.current_filtered_volume = (
+                self.filtered_all_volumes[self.current_level][self.filter_type][8 - (self.current_filter_threshold - 1)][:][:][:])
+        else:
+            self.current_filtered_volume = self.filtered_all_volumes[self.current_level][self.filter_type][
+                (self.current_filter_level *round(self.uncertainty_array.max()))+ self.current_filter_threshold]
+     #   self.visualize_filtered_background()

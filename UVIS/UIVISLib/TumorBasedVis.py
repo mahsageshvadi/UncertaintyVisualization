@@ -15,11 +15,20 @@ class Button(enum.Enum):
 
 class TumorBasedVis():
 
-    def __init__(self, uncertainty_array, segmentation_node):
+    def __init__(self, uncertainty_array, input_volume_dir, input_node):
 
-        self.tumor_3D_model_node = None
 
         self.modelPolyData = None
+        self.directionMatrix  = [[1, 0, 0],
+                           [0, -1, 0],
+                           [0, 0, -1]]
+        self.levels = {
+
+            '0': 'Case020',
+            '1': 'Case015',
+            '2': 'Case097',
+            '3': 'Case112'
+        }
 
         self.smaller_mode_display_node = None
         self.larger_model_display_node = None
@@ -35,15 +44,24 @@ class TumorBasedVis():
         self.point_data = None
         self.normals = None
 
+        self.larger_model_display_node_dict = {}
+        self.smaller_mode_display_node_dict = {}
+        self.tumor_3D_model_display_node_dict = {}
+
         # self.temporary_init()
         #  self.calculate_uncertatinty_volumes()
-        self.segmentation_node = segmentation_node
+
         self.tumor_3D_model_node = None
         self.larger_model = None
         self.smaller_model = None
-        self.generate_tumor_3_d_model()
+        self.input_node = input_node
+        self.generate_tumor_3_d_model(input_volume_dir, 0)
         self.generate_offsets()
 
+    def align_volumes( self, volume_node):
+            volume_node.SetIJKToRASDirections(self.directionMatrix[0][0], self.directionMatrix[0][1], self.directionMatrix[0][2],
+                                                self.directionMatrix[1][0], self.directionMatrix[1][1], self.directionMatrix[1][2],
+                                                self.directionMatrix[2][0], self.directionMatrix[2][1], self.directionMatrix[2][2])
     def test_new_offset_generation(self):
         label_map_volume_node = slicer.mrmlScene.AddNewNodeByClass('vtkMRMLLabelMapVolumeNode', 'LabelMap')
 
@@ -51,9 +69,17 @@ class TumorBasedVis():
         slicer.modules.segmentations.logic().ExportVisibleSegmentsToLabelmapNode(self.segmentation_node,
                                                                                  label_map_volume_node)
 
-        pass
+    def generate_tumor_3_d_model(self, input_volume_dir, level):
 
-    def generate_tumor_3_d_model(self):
+        segmentation_volume_dir = input_volume_dir.replace('pred', 'pred_label')
+
+        self.labelVolume = slicer.util.loadLabelVolume(segmentation_volume_dir, properties={"show": False})
+        self.align_volumes(self.labelVolume)
+        self.segmentation_node = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLSegmentationNode")
+        self.segmentation_node.SetName("NewSegmentation")
+
+        slicer.modules.segmentations.logic().ImportLabelmapToSegmentationNode(self.labelVolume, self.segmentation_node)
+        self.segmentation_node.CreateClosedSurfaceRepresentation()
 
         sh_node = slicer.mrmlScene.GetSubjectHierarchyNode()
         export_folder_item_id = sh_node.CreateFolderItem(sh_node.GetSceneItemID(), "Segments")
@@ -71,12 +97,16 @@ class TumorBasedVis():
                     self.tumor_3D_model_display_node = self.tumor_3D_model_node.GetDisplayNode()
 
                     self.larger_model = self.clone_3D_model_node("Tumor_3D_model_bigger_offset", data_node)
-                    self.larger_mode_display_node = self.larger_model.GetDisplayNode()
+                    self.larger_model_display_node = self.larger_model.GetDisplayNode()
 
                     self.smaller_model = self.clone_3D_model_node("Tumor_3D_model_smaller_offset", data_node)
                     self.smaller_mode_display_node = self.smaller_model.GetDisplayNode()
 
                     slicer.mrmlScene.RemoveNode(data_node)
+
+        self.larger_model_display_node_dict[level] = self.larger_model_display_node
+        self.smaller_mode_display_node_dict[level] = self.smaller_mode_display_node
+        self.tumor_3D_model_display_node_dict[level] = self.tumor_3D_model_display_node
 
     def clone_3D_model_node(self, name, originalModelNode):
 
@@ -121,8 +151,6 @@ class TumorBasedVis():
        # label_map_volume_node = slicer.mrmlScene.AddNewNodeByClass('vtkMRMLabelMapVolumeNode', 'LabelMap')
        # slicer.modules.segmentations.logic().ExportVisibleSegmentsToLabelmapNode(self.segmentation_node, label_map_volume_node)
         bigOffNode = slicer.mrmlScene.AddNewNodeByClass('vtkMRMLScalarVolumeNode', 'NewScalarVolume')
-        testNode = slicer.mrmlScene.AddNewNodeByClass('vtkMRMLScalarVolumeNode', 'testNode')
-        testNode.SetSpacing((0.5, 0.5, 0.5))
 
         bigOffNode.SetSpacing((0.5, 0.5, 0.5))
        # volumes_logic = slicer.modules.volumes.logic()
@@ -132,14 +160,23 @@ class TumorBasedVis():
                                  self.uncertainty_array.shape[1],
                                  self.uncertainty_array.shape[2]), dtype=np.float32)
 
-
-        print(num_points)
         counter = 0
+
         for i in range(num_points):
 
             # Get ith point
             point = [0.0, 0.0, 0.0]
             points.GetPoint(i, point)
+
+            ijkToRasMatrix = vtk.vtkMatrix4x4()
+            self.input_node.GetIJKToRASMatrix(ijkToRasMatrix)
+            ras_coordinates = [point[0], point[1], point[2], 1]  # Append 1 for homogeneous coordinates
+
+            affine_matrix = np.array([[ijkToRasMatrix.GetElement(i, j) for j in range(4)] for i in range(4)])
+            inverse_affine_matrix = np.linalg.inv(affine_matrix)
+
+            point_Ijk = inverse_affine_matrix.dot(ras_coordinates)
+            point_Ijk = np.round(point_Ijk[:3]).astype(int)
 
             if 1 == 0:
                 markups_node = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLMarkupsFiducialNode")
@@ -153,26 +190,34 @@ class TumorBasedVis():
                 markups_node.SetNthControlPointPosition(0, point[2], point[1], point[0])
 
             # Get ijk of ith point
-            point_Ijk = [0, 0, 0, 1]
-            volume_ras_to_ijk.MultiplyPoint(np.append(point, 2.0), point_Ijk)
-            print("Point IJK 1: " + str(point_Ijk))
-
-            point_Ijk = [int(round(c)) for c in point_Ijk[0:3]]
+            #rasToIjkMatrix = vtk.vtkMatrix4x4()
+           # self.input_node.GetRASToIJKMatrix(rasToIjkMatrix)
 
 
-            print("Point: " + str(point))
-            print("Point IJK 2: " + str(point_Ijk))
-            print("Uncertainty value: " + str(self.uncertainty_array[point_Ijk[2]][point_Ijk[1]][point_Ijk[0]]))
+
+          #  ras = [point[0], point[1], point[2], 1]  # Append 1 for homogeneous coordinates
+          #  point_ijk = [0, 0, 0, 1]
+          #  rasToIjkMatrix.MultiplyPoint(ras, point_ijk)
+          #  point_ijk_1 = [int(round(point_ijk[0])), int(round(point_ijk[1])), int(round(point_ijk[2]))]
+
+           # volume_ras_to_ijk.MultiplyPoint(np.append(point, 2.0), point_Ijk)
+            #print("Point IJK 1: " + str(point_Ijk))
+         #   point_Ijk = [int(round(c)) for c in point_Ijk[0:3]]
+
+
+            #print("Point: " + str(point))
+            #print("Point IJK 2: " + str(point_Ijk))
+           # print("Uncertainty value: " + str(self.uncertainty_array[point_Ijk[2]][point_Ijk[1]][point_Ijk[0]]))
 
             # Get uncertainty Value of ith point
-            uncertainty_value = self.uncertainty_array[ -point_Ijk[2]][-point_Ijk[1]][-point_Ijk[0]]
+            uncertainty_value = self.uncertainty_array[0][point_Ijk[1]][point_Ijk[0]]
 
             radius = round(uncertainty_value)*20
-            mask = self.shpere_mask(radius)
+          #  mask = self.shpere_mask(radius)
 
-            integer_mask = mask.astype(np.float32)/num_points
+           # integer_mask = mask.astype(np.float32)/num_points
 
-            bigoff[:,point_Ijk[1] - radius: point_Ijk[1] + radius, point_Ijk[0] - radius: point_Ijk[0] +radius] += integer_mask
+          #  bigoff[:,point_Ijk[1] - radius: point_Ijk[1] + radius, point_Ijk[0] - radius: point_Ijk[0] +radius] += integer_mask
            # mask = self.sphere_mask(512, 2, 512 - point_Ijk[0], 512 - point_Ijk[1], uncertainty_value)
 
           #  bigoff +=integer_mask
@@ -204,7 +249,6 @@ class TumorBasedVis():
             model_output_points_small.SetPoint(i, new_point_smaller)
        # bigoff += integer_mask
 
-        slicer.util.updateVolumeFromArray(testNode, integer_mask)
 
         slicer.util.updateVolumeFromArray(bigOffNode, bigoff)
 
@@ -251,7 +295,7 @@ class TumorBasedVis():
     def temporary_init(self):
 
         self.larger_model = slicer.util.getNode('Output4')
-        self.larger_mode_display_node = self.larger_model.GetDisplayNode()
+        self.larger_model_display_node = self.larger_model.GetDisplayNode()
         self.modelOutputPoly = self.larger_model.GetPolyData()
 
         self.smaller_model = slicer.util.getNode('Output5')
@@ -278,8 +322,8 @@ class TumorBasedVis():
 
         if is_checked:
 
-            self.larger_mode_display_node.VisibilityOn()
-            self.larger_mode_display_node.SetVisibility2D(True)
+            self.larger_model_display_node.VisibilityOn()
+            self.larger_model_display_node.SetVisibility2D(True)
 
             self.tumor_3D_model_display_node.VisibilityOn()
             self.tumor_3D_model_display_node.SetVisibility2D(True)
@@ -289,8 +333,8 @@ class TumorBasedVis():
 
         else:
 
-            self.larger_mode_display_node.VisibilityOff()
-            self.larger_mode_display_node.SetVisibility2D(False)
+            self.larger_model_display_node.VisibilityOff()
+            self.larger_model_display_node.SetVisibility2D(False)
 
             self.tumor_3D_model_display_node.VisibilityOff()
             self.tumor_3D_model_display_node.SetVisibility2D(False)
@@ -302,8 +346,8 @@ class TumorBasedVis():
 
         if Button == Button.TumorBigger:
 
-            self.larger_mode_display_node.SetOpacity(opacity / 100)
-            self.larger_mode_display_node.SetSliceIntersectionOpacity(opacity / 100)
+            self.larger_model_display_node.SetOpacity(opacity / 100)
+            self.larger_model_display_node.SetSliceIntersectionOpacity(opacity / 100)
 
         elif Button == Button.Tumor:
 
@@ -321,7 +365,7 @@ class TumorBasedVis():
 
         if Button == Button.TumorBigger:
 
-            self.larger_mode_display_node.SetColor(color)
+            self.larger_model_display_node.SetColor(color)
 
         elif Button == Button.Tumor:
 
@@ -335,7 +379,7 @@ class TumorBasedVis():
 
         if Button == Button.TumorBigger:
 
-            self.larger_mode_display_node.SetSliceIntersectionThickness(width)
+            self.larger_model_display_node.SetSliceIntersectionThickness(width)
 
         elif Button == Button.Tumor:
 
@@ -344,3 +388,15 @@ class TumorBasedVis():
         elif Button == Button.TumorSmaller:
 
             self.smaller_mode_display_node.SetSliceIntersectionThickness(width)
+
+    def game_level_changes_tumor_based(self, uncertaintyArray, data_dir, level, input_node):
+
+        input_volume_dir = data_dir +  self.levels[str(level)] + '/' + self.levels[str(level)] + '_0_pred.nii'
+        self.input_node = input_node
+        self.uncertainty_array = uncertaintyArray
+        if self.larger_model_display_node_dict.get(level) is None:
+            self.generate_tumor_3_d_model(input_volume_dir, level)
+            self.generate_offsets()
+        self.larger_model_display_node = self.larger_model_display_node_dict[level]
+        self.smaller_mode_display_node = self.smaller_mode_display_node_dict[level]
+        self.tumor_3D_model_display_node = self.tumor_3D_model_display_node_dict[level]
