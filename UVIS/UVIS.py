@@ -249,7 +249,7 @@ class UVISWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         self.game_leve_label.setVisible(True)
         self.game_level.setVisible(True)
         self.play_button.setVisible(True)
-        self.reset_button.setVisible(True)
+        self.reset_button.setVisible(False)
         self.save_button.setVisible(True)
     #    self.play_game_with_ground_truth.setVisible(True)
         self.game_stop_button.setVisible(True)
@@ -264,16 +264,19 @@ class UVISWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         self.game_leve_label.setVisible(False)
         self.game_level.setVisible(False)
         self.play_button.setVisible(False)
+        self.play_wo_vis_button.setVisible(False)
         self.reset_button.setVisible(False)
         self.save_button.setVisible(False)
      #   self.play_game_with_ground_truth.setVisible(False)
         self.game_stop_button.setVisible(False)
         self.game_start_button.setVisible(True)
         self.logic.game.game_stopped()
-      #  self.logic.game.reset()
+        self.on_game_level_changed(0)
+        self.game_level.setCurrentIndex(0)
 
-
-    # Tumor based functions
+    def play_game(self):
+        self.reset_button.setVisible(True)
+        self.logic.play_game()
 
     def change_model_opacity(self, Button, opacity):
 
@@ -291,8 +294,9 @@ class UVISWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         self.logic.filter_threshold_changed(filter_threshold)
         self.slider_value_label.setText(f"{filter_threshold} mm")
 
-
     def filter_mode_selected(self, in_checked):
+
+        self.logic.current_visualization["Volume Filtering"] = True
 
         self.logic.is_filter_mode_selected = in_checked
 
@@ -317,6 +321,9 @@ class UVISWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
 
     def tumor_based_mode_selected(self, in_checked):
 
+        self.logic.current_visualization["Tumor Based"] = True
+        self.logic.is_tumor_based_mode_selected = in_checked
+
         self.logic.tumorBasedViS.enable_tumorVIS(in_checked)
 
     def on_filter_type_changed(self, index):
@@ -335,6 +342,12 @@ class UVISWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
                                                        not_bluredd_uncertainty_increase=self.current_filter_threshold_changed / 100)
 
     def on_game_level_changed(self, index):
+        self.reset_button.setVisible(False)
+        if index == 2 or index == 3:
+            self.play_wo_vis_button.setVisible(True)
+        else:
+            self.play_wo_vis_button.setVisible(False)
+
         self.logic.game_level_changed(index)
 
     def on_line_thickness_changed(self, Button, value):
@@ -584,7 +597,7 @@ class UVISWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         self.layout.addStretch(1)
 
         self.surgeonCentricCollapsible = ctk.ctkCollapsibleButton()
-        self.surgeonCentricCollapsible.text = "Surgoen Centric"
+        self.surgeonCentricCollapsible.text = "Surgeon Centric"
         self.surgeonCentricCollapsible.setVisible(False)
         self.layout.addWidget(self.surgeonCentricCollapsible)
         surgeonCentricCollapsibleLayout = qt.QFormLayout(self.surgeonCentricCollapsible)
@@ -721,22 +734,27 @@ class UVISWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         self.game_start_button.clicked.connect(self.game_started)
 
         self.play_button = qt.QPushButton("Play")
-        self.play_button.setFixedSize(50, 30)
-        self.play_button.clicked.connect(self.logic.play_game)
+        self.play_button.setFixedSize(80, 30)
+        self.play_button.clicked.connect(self.play_game)
         self.play_button.setVisible(False)
 
+        self.play_wo_vis_button = qt.QPushButton("Trace Tumor")
+        self.play_wo_vis_button.setFixedSize(80, 30)
+        self.play_wo_vis_button.clicked.connect(self.logic.play_game_wo_vis)
+        self.play_wo_vis_button.setVisible(False)
+
         self.save_button = qt.QPushButton("Save")
-        self.save_button.setFixedSize(50, 30)
+        self.save_button.setFixedSize(80, 30)
         self.save_button.clicked.connect(self.logic.save_data)
         self.save_button.setVisible(False)
 
         self.reset_button = qt.QPushButton("Reset")
-        self.reset_button.setFixedSize(50, 30)
+        self.reset_button.setFixedSize(80, 30)
         self.reset_button.clicked.connect(self.logic.reset)  # Connect to your reset_game function
         self.reset_button.setVisible(False)
 
-        self.game_stop_button = qt.QPushButton("End the game")
-        self.game_stop_button.setFixedSize(100, 30)
+        self.game_stop_button = qt.QPushButton("New user")
+        self.game_stop_button.setFixedSize(120, 30)
         self.game_stop_button.setVisible(False)
         self.game_stop_button.clicked.connect(self.game_stopped)
 
@@ -776,15 +794,16 @@ class UVISWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
       #  gameLayout.addWidget(self.game_type_label, 1, 0)
       #  gameLayout.addWidget(self.game_type, 1, 3)
         gameLayout.addWidget(self.game_leve_label, 2, 0)
-        gameLayout.addWidget(self.game_level, 2, 3)
+        gameLayout.addWidget(self.game_level, 2, 1)
     #    gameLayout.addWidget(self.play_game_with_ground_truth, 3, 0)
-        gameLayout.addWidget(self.play_button, 4, 0)
-        gameLayout.addWidget(self.reset_button, 4, 1)
+        gameLayout.addWidget(self.play_wo_vis_button, 4, 0)
+        gameLayout.addWidget(self.play_button, 4, 1)
+        gameLayout.addWidget(self.reset_button, 5, 0)
         #   gameLayout.addWidget(self.colorOverlay_checkBox, 2, 0)
         #    gameLayout.addWidget(self.textMode_checkBox, 3, 0)
         #    gameLayout.addWidget(self.audioMode_checkBox, 4, 0)
-        gameLayout.addWidget(self.save_button, 4, 2)
-        gameLayout.addWidget(self.game_stop_button, 5, 0)
+        gameLayout.addWidget(self.save_button, 5, 1)
+        gameLayout.addWidget(self.game_stop_button, 5, 6)
 
         gameCollapsibleLayout.addRow(gameLayout)
 
@@ -822,10 +841,22 @@ class UVISLogic(ScriptedLoadableModuleLogic):
         self.tumorBasedViS = None
         self.numberOfActiveOnMouseMoveAtts = 0
         self.is_filter_mode_selected = False
+        self.is_tumor_based_mode_selected = False
         self.data_dir = '/Users/mahsa/Dropbox (Partners HealthCare)/Mahsa-Reuben/generationv2/4mm/'
         self.layoutManager = slicer.app.layoutManager()
         self.colorLogic = slicer.modules.colors.logic()
         self.red_composite_node = slicer.mrmlScene.GetNodeByID('vtkMRMLSliceCompositeNodeRed')
+        self.current_level = 0
+
+        self.current_visualization = {
+            "Volume Filtering" : False,
+            "Tumor Based" : False,
+            "Color Overlay": False,
+            "Text Mode": False,
+            "Color Overlay Surgeon Centric" : False,
+            "Audio": False,
+            "Flicker": False
+        }
 
         # Link different views
         sliceCompositeNodes = slicer.util.getNodesByClass("vtkMRMLSliceCompositeNode")
@@ -865,6 +896,7 @@ class UVISLogic(ScriptedLoadableModuleLogic):
 
     def surgeon_centric_mode_selected(self, isChecked):
 
+        self.current_visualization["Color Overlay Surgeon Centric"] = isChecked
         if isChecked:
             self.uncertaintyForeground.set_surgeon_centric_mode(isChecked)
             #  if self.colorLUT.colorTableForSurgeonCentric is not None:
@@ -887,6 +919,7 @@ class UVISLogic(ScriptedLoadableModuleLogic):
 
     def turn_visualization_off(self, isChecked):
 
+        self.current_visualization['Color Overlay'] = isChecked
         self.uncertaintyForeground.enable_color_overlay_foreground(isChecked)
       #  self.colorLogic.AddDefaultColorLegendDisplayNode(self.uncertaintyForeground)
       #  self.colorLogic.GetColorLegendDisplayNode(self.uncertaintyForeground).SetSize(0.1, 0.5)
@@ -895,8 +928,8 @@ class UVISLogic(ScriptedLoadableModuleLogic):
 
     def flicker_mode_selected(self, isChecked):
 
+        self.current_visualization["Flicker"] = isChecked
         self.uncertaintyForeground.enable_disable_flicker_mode(isChecked)
-
         if isChecked:
             if self.numberOfActiveOnMouseMoveAtts == 0:
                 self.id = self.crosshairNode.AddObserver(slicer.vtkMRMLCrosshairNode.CursorPositionModifiedEvent,
@@ -911,6 +944,7 @@ class UVISLogic(ScriptedLoadableModuleLogic):
 
     def text_mode_selected(self, in_checked):
 
+        self.current_visualization['Text Mode'] = in_checked
         self.text_mode_visualization.show_markup(in_checked)
 
         if in_checked:
@@ -927,6 +961,7 @@ class UVISLogic(ScriptedLoadableModuleLogic):
 
     def audio_mode_selected(self, is_checked):
 
+        self.current_visualization["Audio"] = is_checked
         self.audioMode.turnOnAudioMode(is_checked)
 
         if is_checked:
@@ -1027,6 +1062,21 @@ class UVISLogic(ScriptedLoadableModuleLogic):
 
     def play_game(self):
 
+        self.game.toggle_tracing_boundary_mode(False)
+        if self.current_level == 2 or self.current_level == 3:
+            self.toggle_visualization(True)
+
+        if self.is_filter_mode_selected:
+            input_volume_node = self.backgroundModifiedVisualization.get_current_filtered_node()
+            self.game.play(self.uncertaintyArray, input_volume_node)
+        else:
+            self.game.play(self.uncertaintyArray, self.input_volume_node)
+
+    def play_game_wo_vis(self):
+        self.game.toggle_tracing_boundary_mode(True)
+        if self.current_level == 2 or self.current_level == 3:
+            self.toggle_visualization(False)
+
         if self.is_filter_mode_selected:
             input_volume_node = self.backgroundModifiedVisualization.get_current_filtered_node()
             self.game.play(self.uncertaintyArray, input_volume_node)
@@ -1040,6 +1090,7 @@ class UVISLogic(ScriptedLoadableModuleLogic):
 
     def game_level_changed(self, level):
 
+        self.current_level = level
         if self.is_filter_mode_selected:
             show_on_slicer = False
         else:
@@ -1048,27 +1099,20 @@ class UVISLogic(ScriptedLoadableModuleLogic):
         self.game.play_new_level(level)
 
        # self.current_data_dir = self.data_dir + case_name
-      #  self.input_volume_node = slicer.util.loadVolume(self.current_data_dir + '/' +
-                                                      #  case_name + '_0_pred.nii', properties={"show": show_on_slicer})
-     #   self.align_volumes(self.input_volume_node)
-
-        self.input_volume_node = self.game.get_input_volume_node()
-
      #   self.uncertaintyNode = slicer.util.loadVolume(self.current_data_dir + '/' +
                                                        # case_name + '_0_uncertainty.nii', properties={"show": show_on_slicer})
      #   self.align_volumes(self.uncertaintyNode)
 
+        self.input_volume_node = self.game.get_input_volume_node()
         self.uncertaintyNode = self.game.get_Uncertainty_node()
-       # self.uncertaintyArray = slicer.util.arrayFromVolume(self.uncertaintyNode)
         self.uncertaintyArray = self.game.get_uncertainty_array()
 
         self.backgroundModifiedVisualization.game_level_changes_background_modified(self.uncertaintyArray,
                                                                                     self.input_volume_node, level)
         if not self.is_filter_mode_selected:
             self.red_composite_node.SetBackgroundVolumeID(self.input_volume_node.GetID())
-            current_silce = self.layoutManager.sliceWidget('Red')
-            current_silce.fitSliceToBackground()
-           # slicer.util.setSliceViewerLayers(background=self.input_volume_node)
+            current_slice = self.layoutManager.sliceWidget('Red')
+            current_slice.fitSliceToBackground()
         else:
             self.backgroundModifiedVisualization.visualize_filtered_background()
 
@@ -1076,8 +1120,37 @@ class UVISLogic(ScriptedLoadableModuleLogic):
         self.text_mode_visualization.game_level_changes_text_mode(self.uncertaintyArray)
 
         self.tumorBasedViS.game_level_changes_tumor_based(self.uncertaintyArray,self.data_dir, level,  self.input_volume_node )
+        if not self.is_tumor_based_mode_selected:
+            self.tumorBasedViS.enable_tumorVIS(False)
+
         self.audioMode.game_level_changes_audio_mode(self.uncertaintyArray)
 
         if self.numberOfActiveOnMouseMoveAtts >0:
             self.id = self.crosshairNode.AddObserver(slicer.vtkMRMLCrosshairNode.CursorPositionModifiedEvent,
                                                          self.on_mouse_moved)
+
+        if level == 2 or level == 3:
+            self.toggle_visualization(False)
+        else:
+            self.toggle_visualization(True)
+
+
+    def toggle_visualization(self, is_on):
+
+        if self.current_visualization["Volume Filtering"]:
+            if is_on:
+                self.backgroundModifiedVisualization.visualize_filtered_background()
+            else:
+                self.backgroundModifiedVisualization.turn_blured_visualization_off()
+        if self.current_visualization["Tumor Based"]:
+            self.tumorBasedViS.enable_tumorVIS(is_on)
+        if self.current_visualization["Color Overlay"]:
+            self.uncertaintyForeground.enable_color_overlay_foreground(is_on)
+        if self.current_visualization["Text Mode"]:
+            self.text_mode_visualization.show_markup(is_on)
+        if self.current_visualization["Color Overlay Surgeon Centric"]:
+            self.uncertaintyForeground.set_surgeon_centric_mode(is_on)
+        if self.current_visualization["Audio"]:
+            self.audioMode.turnOnAudioMode(is_on)
+        if self.current_visualization["Flicker"]:
+            self.uncertaintyForeground.enable_disable_flicker_mode(is_on)

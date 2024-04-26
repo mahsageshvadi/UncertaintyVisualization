@@ -325,8 +325,8 @@ class TumorBasedVis():
             self.larger_model_display_node.VisibilityOn()
             self.larger_model_display_node.SetVisibility2D(True)
 
-            self.tumor_3D_model_display_node.VisibilityOn()
-            self.tumor_3D_model_display_node.SetVisibility2D(True)
+         #   self.tumor_3D_model_display_node.VisibilityOn()
+         #   self.tumor_3D_model_display_node.SetVisibility2D(True)
 
             self.smaller_mode_display_node.VisibilityOn()
             self.smaller_mode_display_node.SetVisibility2D(True)
@@ -391,7 +391,7 @@ class TumorBasedVis():
 
     def game_level_changes_tumor_based(self, uncertaintyArray, data_dir, level, input_node):
 
-        input_volume_dir = data_dir +  self.levels[str(level)] + '/' + self.levels[str(level)] + '_0_pred.nii'
+        input_volume_dir = data_dir + self.levels[str(level)] + '/' + self.levels[str(level)] + '_0_pred.nii'
         self.input_node = input_node
         self.uncertainty_array = uncertaintyArray
         if self.larger_model_display_node_dict.get(level) is None:
@@ -400,3 +400,4 @@ class TumorBasedVis():
         self.larger_model_display_node = self.larger_model_display_node_dict[level]
         self.smaller_mode_display_node = self.smaller_mode_display_node_dict[level]
         self.tumor_3D_model_display_node = self.tumor_3D_model_display_node_dict[level]
+        self.enable_tumorVIS(True)
