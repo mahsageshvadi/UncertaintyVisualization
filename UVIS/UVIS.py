@@ -160,11 +160,11 @@ class UVISWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
                                                          self.uncertainty_array.min(),
                                                          self.uncertainty_array.max() + 1,
                                                          self.apply_initial_threshold_for_color_overlay)
-
-            self.slider_setup_based_on_uncertainty_value(self.sigma_slider,
-                                                         self.filter_levels[0],
-                                                         self.filter_levels[-1],
-                                                         self.filter_level_changed)
+            self.logic.filter_level_changed(4)
+           # self.slider_setup_based_on_uncertainty_value(self.sigma_slider,
+                                               #          self.filter_levels[0],
+                                               #          self.filter_levels[-1],
+                                                 #        self.filter_level_changed)
 
             self.slider_setup_based_on_uncertainty_value(self.bluriness_threshold_slider,
                                                          round(self.uncertainty_array.min()),
@@ -214,6 +214,7 @@ class UVISWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         color = color_dialog.getColor()
         h = str(color).lstrip('#')
         colorrgb = tuple(int(h[i:i + 2], 16) for i in (0, 2, 4))
+        print(colorrgb)
 
         if Button == Button.One:
             self.logic.colorLUT.set_first_color(colorrgb)
@@ -227,6 +228,13 @@ class UVISWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
             self.logic.tumorBasedViS.set_color(Button, colorrgb)
 
     # Color overlay  functions
+
+    def apply_candidate_color(self, first_color, second_color):
+        self.logic.colorLUT.set_first_color(first_color)
+        self.logic.colorLUT.apply_color_map()
+
+        self.logic.colorLUT.set_second_color(second_color)
+        self.logic.colorLUT.apply_color_map()
 
     def apply_initial_threshold_for_color_overlay(self, value):
 
@@ -382,10 +390,10 @@ class UVISWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         self.layout.addWidget(self.blurinessColapsibbleButton)
         bluriness_collapsible_layout = qt.QFormLayout(self.blurinessColapsibbleButton)
         filter_Layout = qt.QGridLayout()
-        bluriness_level_slider_label = qt.QLabel("Filter Level:")
+      #  bluriness_level_slider_label = qt.QLabel("Filter Level:")
 
-        self.sigma_slider = qt.QSlider(qt.Qt.Horizontal)
-        self.slider_initial_setup(self.sigma_slider, self.current_filter_level)
+      #  self.sigma_slider = qt.QSlider(qt.Qt.Horizontal)
+       # self.slider_initial_setup(self.sigma_slider, self.current_filter_level)
 
         bluriness_l_threshold_slider = qt.QLabel("Uncertainty Threshold:")
 
@@ -396,29 +404,31 @@ class UVISWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
 
         self.changeFilterType = qt.QComboBox()
         self.changeFilterType.setFixedSize(120, 30)
-        self.changeFilterType.addItem("Guassian")
+        self.changeFilterType.addItem("Gaussian")
         self.changeFilterType.addItem("Noise")
-        self.changeFilterType.addItem("Transparancy")
+       # self.changeFilterType.addItem("Transparancy")
         self.changeFilterType.setCurrentIndex(0)
 
-        self.numberof_blured_sections_dropdown = qt.QComboBox()
-        self.numberof_blured_sections_dropdown.setFixedSize(100, 30)
-        for value in range(2, 12):
-            self.numberof_blured_sections_dropdown.addItem(str(value))
+     #
 
-        self.numberof_blured_sections_dropdown.addItem("Non-Binary")
-        self.numberof_blured_sections_dropdown.setCurrentIndex(0)
+        self.numberof_blured_sections_dropdown = qt.QComboBox()
+       # self.numberof_blured_sections_dropdown.setFixedSize(100, 30)
+       # for value in range(2, 12):
+       #     self.numberof_blured_sections_dropdown.addItem(str(value))
+
+      #  self.numberof_blured_sections_dropdown.addItem("Non-Binary")
+      #  self.numberof_blured_sections_dropdown.setCurrentIndex(0)
         #  self.numberofBluredSectionsDropdown.currentIndexChanged.connect(self.bluriness_number_of_section_changed)
 
         self.select_filter_checkkbox = qt.QCheckBox("Enable")
         self.select_filter_checkkbox.toggled.connect(
             lambda: self.filter_mode_selected(self.select_filter_checkkbox.isChecked()))
 
-        filter_Layout.addWidget(bluriness_level_slider_label, 1, 0)
+      #  filter_Layout.addWidget(bluriness_level_slider_label, 1, 0)
         filter_Layout.addWidget(self.changeFilterType, 2, 2, qt.Qt.AlignRight)
-        filter_Layout.addWidget(self.numberof_blured_sections_dropdown, 3, 2, qt.Qt.AlignRight)
+      #  filter_Layout.addWidget(self.numberof_blured_sections_dropdown, 3, 2, qt.Qt.AlignRight)
         filter_Layout.addWidget(self.select_filter_checkkbox, 0, 0, qt.Qt.AlignLeft)
-        filter_Layout.addWidget(self.sigma_slider, 2, 0)
+       # filter_Layout.addWidget(self.sigma_slider, 2, 0)
         filter_Layout.addWidget(bluriness_l_threshold_slider, 3, 0)
         slider_layout = qt.QHBoxLayout()
         slider_layout.addWidget(self.bluriness_threshold_slider)
@@ -441,35 +451,35 @@ class UVISWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         self.select_tumorbased_checkbox.toggled.connect(
             lambda: self.tumor_based_mode_selected(self.select_tumorbased_checkbox.isChecked()))
 
-        self.bigger_uncertainty_slider = qt.QSlider(qt.Qt.Horizontal)
-        self.slider_initial_setup(self.bigger_uncertainty_slider)
+      #  self.bigger_uncertainty_slider = qt.QSlider(qt.Qt.Horizontal)
+      #  self.slider_initial_setup(self.bigger_uncertainty_slider)
 
         self.bigger_uncertainty_slider_label = qt.QLabel("Maximum Offset: ")
-        self.opacity_label = qt.QLabel("Opacity: ")
+      # self.opacity_label = qt.QLabel("Opacity: ")
         # self.sigma_slider.setValue(self.currentBlurinesssigma)
-        self.bigger_uncertainty_slider.valueChanged.connect(
-            lambda value: self.change_model_opacity(Button.TumorBigger, value))
+      #  self.bigger_uncertainty_slider.valueChanged.connect(
+        #    lambda value: self.change_model_opacity(Button.TumorBigger, value))
 
         self.color_button_tumorbased = qt.QPushButton("Color")
         self.color_button_tumorbased.setFixedSize(50, 30)
         self.color_button_tumorbased.clicked.connect(lambda: self.open_color_picker(Button.TumorBigger))
 
-        self.line_thickness_for_bigger_offset_label = qt.QLabel("Line Thickness: ")
+      #  self.line_thickness_for_bigger_offset_label = qt.QLabel("Line Thickness: ")
 
-        self.line_thickneess_for_bigger_offset = qt.QSpinBox()
-        self.line_thickneess_for_bigger_offset.setRange(0, 20)
-        self.line_thickneess_for_bigger_offset.setValue(2)
-        self.line_thickneess_for_bigger_offset.setSingleStep(1)
-        self.line_thickneess_for_bigger_offset.valueChanged.connect(
-            lambda value: self.on_line_thickness_changed(Button.TumorBigger, value))
+     #   self.line_thickneess_for_bigger_offset = qt.QSpinBox()
+      #  self.line_thickneess_for_bigger_offset.setRange(0, 20)
+      #  self.line_thickneess_for_bigger_offset.setValue(2)
+      #  self.line_thickneess_for_bigger_offset.setSingleStep(1)
+      #  self.line_thickneess_for_bigger_offset.valueChanged.connect(
+         #   lambda value: self.on_line_thickness_changed(Button.TumorBigger, value))
 
         tumor_based_layout.addWidget(self.select_tumorbased_checkbox, 0, 0)
         tumor_based_layout.addWidget(self.bigger_uncertainty_slider_label, 1, 0)
-        tumor_based_layout.addWidget(self.opacity_label, 2, 0, qt.Qt.AlignRight)
-        tumor_based_layout.addWidget(self.bigger_uncertainty_slider, 2, 1, qt.Qt.AlignLeft)
-        tumor_based_layout.addWidget(self.color_button_tumorbased, 2, 2)
-        tumor_based_layout.addWidget(self.line_thickness_for_bigger_offset_label, 2, 3, qt.Qt.AlignRight)
-        tumor_based_layout.addWidget(self.line_thickneess_for_bigger_offset, 2, 4, qt.Qt.AlignRight)
+       # tumor_based_layout.addWidget(self.opacity_label, 2, 0, qt.Qt.AlignRight)
+      #  tumor_based_layout.addWidget(self.bigger_uncertainty_slider, 2, 1, qt.Qt.AlignLeft)
+        tumor_based_layout.addWidget(self.color_button_tumorbased, 1, 1)
+      #  tumor_based_layout.addWidget(self.line_thickness_for_bigger_offset_label, 2, 3, qt.Qt.AlignRight)
+    #    tumor_based_layout.addWidget(self.line_thickneess_for_bigger_offset, 2, 4, qt.Qt.AlignRight)
 
         self.tumor_based_uncertainty_slider = qt.QSlider(qt.Qt.Horizontal)
         self.slider_initial_setup(self.tumor_based_uncertainty_slider)
@@ -501,13 +511,13 @@ class UVISWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
     #    tumor_based_layout.addWidget(self.spin_box_label, 4, 3, qt.Qt.AlignRight)
     #    tumor_based_layout.addWidget(self.spin_box_tumor, 4, 4, qt.Qt.AlignRight)
 
-        self.smaller_uncertainty_slider = qt.QSlider(qt.Qt.Horizontal)
-        self.slider_initial_setup(self.smaller_uncertainty_slider)
+      #  self.smaller_uncertainty_slider = qt.QSlider(qt.Qt.Horizontal)
+       # self.slider_initial_setup(self.smaller_uncertainty_slider)
 
         self.smaller_uncertainty_slider_label = qt.QLabel("Minimum Offset:")
-        self.opacity_label_smaller = qt.QLabel("Opacity: ")
-        self.smaller_uncertainty_slider.valueChanged.connect(
-            lambda value: self.change_model_opacity(Button.TumorSmaller, value))
+      # self.opacity_label_smaller = qt.QLabel("Opacity: ")
+     #   self.smaller_uncertainty_slider.valueChanged.connect(
+        #    lambda value: self.change_model_opacity(Button.TumorSmaller, value))
 
         # self.sigma_slider.setValue(self.currentBlurinesssigma)
 
@@ -515,21 +525,21 @@ class UVISWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         self.color_button_tumorbased_smaller.setFixedSize(50, 30)
         self.color_button_tumorbased_smaller.clicked.connect(lambda: self.open_color_picker(Button.TumorSmaller))
 
-        self.spin_box_label_smaller = qt.QLabel("Line Thickness: ")
+      #  self.spin_box_label_smaller = qt.QLabel("Line Thickness: ")
 
-        self.spin_box_smaller = qt.QSpinBox()
-        self.spin_box_smaller.setRange(0, 20)
-        self.spin_box_smaller.setValue(2)
-        self.spin_box_smaller.setSingleStep(1)
-        self.spin_box_smaller.valueChanged.connect(
-            lambda value: self.on_line_thickness_changed(Button.TumorSmaller, value))
+      #  self.spin_box_smaller = qt.QSpinBox()
+    #    self.spin_box_smaller.setRange(0, 20)
+     #   self.spin_box_smaller.setValue(2)
+      #  self.spin_box_smaller.setSingleStep(1)
+      #  self.spin_box_smaller.valueChanged.connect(
+        #    lambda value: self.on_line_thickness_changed(Button.TumorSmaller, value))
 
         tumor_based_layout.addWidget(self.smaller_uncertainty_slider_label, 5, 0)
-        tumor_based_layout.addWidget(self.opacity_label_smaller, 6, 0, qt.Qt.AlignRight)
-        tumor_based_layout.addWidget(self.smaller_uncertainty_slider, 6, 1, qt.Qt.AlignLeft)
-        tumor_based_layout.addWidget(self.color_button_tumorbased_smaller, 6, 2, qt.Qt.AlignRight)
-        tumor_based_layout.addWidget(self.spin_box_label_smaller, 6, 3, qt.Qt.AlignRight)
-        tumor_based_layout.addWidget(self.spin_box_smaller, 6, 4, qt.Qt.AlignRight)
+      #  tumor_based_layout.addWidget(self.opacity_label_smaller, 6, 0, qt.Qt.AlignRight)
+      #  tumor_based_layout.addWidget(self.smaller_uncertainty_slider, 6, 1, qt.Qt.AlignLeft)
+        tumor_based_layout.addWidget(self.color_button_tumorbased_smaller, 5, 1)
+      #  tumor_based_layout.addWidget(self.spin_box_label_smaller, 6, 3, qt.Qt.AlignRight)
+    #    tumor_based_layout.addWidget(self.spin_box_smaller, 6, 4, qt.Qt.AlignRight)
 
         tumorBasedCollapsibleLayout.addRow(tumor_based_layout)
 
@@ -550,14 +560,23 @@ class UVISWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         onOffVis = qt.QCheckBox("Enable")
         onOffVis.toggled.connect(lambda: self.logic.turn_visualization_off(onOffVis.isChecked()))
 
-        self.color_button = qt.QPushButton("Select First Color")
-        self.color_button.setFixedSize(130, 30)
-        self.color_button.setFixedSize(130, 30)
-        self.color_button.clicked.connect(lambda: self.open_color_picker(Button.One))
+        self.color_candidate_1= qt.QPushButton("Color_1")
+        self.color_candidate_1.setFixedSize(70, 30)
+        self.color_candidate_1.clicked.connect(lambda: self.apply_candidate_color((14, 101, 20), (255, 135, 47)))
 
-        self.color_button_2 = qt.QPushButton("Select Second Color")
-        self.color_button_2.setFixedSize(130, 30)
-        self.color_button_2.clicked.connect(lambda: self.open_color_picker(Button.Two))
+        self.color_candidate_2= qt.QPushButton("Color_2")
+        self.color_candidate_2.setFixedSize(70, 30)
+        self.color_candidate_2.clicked.connect(lambda: self.apply_candidate_color((75, 111, 193), (113, 33, 103)))
+
+
+      #  self.color_button = qt.QPushButton("Select First Color")
+     #   self.color_button.setFixedSize(130, 30)
+    #    self.color_button.setFixedSize(130, 30)
+    #    self.color_button.clicked.connect(lambda: self.open_color_picker(Button.One))
+
+     #   self.color_button_2 = qt.QPushButton("Select Second Color")
+     #   self.color_button_2.setFixedSize(130, 30)
+     #   self.color_button_2.clicked.connect(lambda: self.open_color_picker(Button.Two))
 
       #  self.select_color_overlay_two_one_color = qt.QComboBox()
       #  self.select_color_overlay_two_one_color.addItem("Two Color Gradient")
@@ -567,8 +586,8 @@ class UVISWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
 
         self.reset_button = qt.QPushButton("Reset")
         self.reset_button.setFixedSize(50, 30)
-        self.binary_CheckBox = qt.QCheckBox("Binary Colors")
-        self.binary_CheckBox.toggled.connect(lambda: self.select_binary_color_map(self.binary_CheckBox.isChecked()))
+       # self.binary_CheckBox = qt.QCheckBox("Binary Colors")
+      #  self.binary_CheckBox.toggled.connect(lambda: self.select_binary_color_map(self.binary_CheckBox.isChecked()))
         self.reset_button.connect('clicked()', self.reset_colormap_selected)
 
         self.color_overlay_slider_control = qt.QSlider(qt.Qt.Horizontal)
@@ -578,11 +597,11 @@ class UVISWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
 
         colort_mode_layout = qt.QGridLayout()
         colort_mode_layout.addWidget(onOffVis, 0, 0, qt.Qt.AlignLeft)
-        colort_mode_layout.addWidget(self.color_button, 1, 0, qt.Qt.AlignLeft)
-        colort_mode_layout.addWidget(self.color_button_2, 2, 0, qt.Qt.AlignLeft)
+        colort_mode_layout.addWidget(self.color_candidate_1, 1, 0, qt.Qt.AlignLeft)
+        colort_mode_layout.addWidget(self.color_candidate_2, 2, 0, qt.Qt.AlignLeft)
       #  colort_mode_layout.addWidget(self.select_color_overlay_two_one_color, 1, 2, qt.Qt.AlignRight)
         colort_mode_layout.addWidget(self.reset_button, 2, 2, qt.Qt.AlignRight)
-        colort_mode_layout.addWidget(self.binary_CheckBox, 1, 2)
+    #    colort_mode_layout.addWidget(self.binary_CheckBox, 1, 2)
         slider_layout_color = qt.QHBoxLayout()
         slider_layout_color.addWidget(self.color_overlay_slider_control)
         slider_layout_color.addWidget(self.mm_label_for_color_overlay)
@@ -648,11 +667,11 @@ class UVISWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         self.audio_checkbox = qt.QCheckBox("Enable")
         self.audio_checkbox.toggled.connect(lambda: self.logic.audio_mode_selected(self.audio_checkbox.isChecked()))
 
-        self.audio_dropdown = qt.QComboBox()
-        audio_options = ["Beep 1", "Beep 2", "Don't trust"]
-        self.audio_dropdown.setFixedSize(100, 30)
-        self.audio_dropdown.addItems(audio_options)
-        self.audio_dropdown.currentIndexChanged.connect(self.logic.on_audio_option_selected)
+       # self.audio_dropdown = qt.QComboBox()
+      #  audio_options = ["Beep 1", "Beep 2", "Don't trust"]
+      #  self.audio_dropdown.setFixedSize(100, 30)
+      #  self.audio_dropdown.addItems(audio_options)
+      #  self.audio_dropdown.currentIndexChanged.connect(self.logic.on_audio_option_selected)
 
         self.audio_threshold_slider = qt.QSlider(qt.Qt.Horizontal)
         self.slider_initial_setup(self.audio_threshold_slider ,self.currentAudioThresholdValue)
@@ -664,7 +683,7 @@ class UVISWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         audioModeLayout.addWidget(self.audio_checkbox, 0, 0, qt.Qt.AlignLeft)
         audioModeLayout.addWidget(self.audio_threshold_slider, 0, 1, qt.Qt.AlignLeft)
         audioModeLayout.addWidget(self.audio_slider_value_label, 0, 2, qt.Qt.AlignLeft)
-        audioModeLayout.addWidget(self.audio_dropdown, 1, 0, qt.Qt.AlignLeft)
+     #   audioModeLayout.addWidget(self.audio_dropdown, 1, 0, qt.Qt.AlignLeft)
         self.audioTab.setLayout(audioModeLayout)
 
         self.flicker_checkbox = qt.QCheckBox("Enable")
@@ -976,6 +995,7 @@ class UVISLogic(ScriptedLoadableModuleLogic):
             self.numberOfActiveOnMouseMoveAtts -= 1
             if self.numberOfActiveOnMouseMoveAtts == 0:
                 self.crosshairNode.RemoveObserver(self.id)
+        self.on_audio_option_selected(2)
 
     # def flickerModeSelected(self, isChecked):
 
