@@ -154,7 +154,7 @@ class UVISWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
             self.uncertainty_array = slicer.util.arrayFromVolume(uncertainty_node)
             self.logic.uncertaintyNode = uncertainty_node
 
-            self.logic.uncertainty_volume_selected_initialization(self.input_volume_dir)
+            self.logic.uncertainty_volume_selected_initialization(self.input_volume_dir, self.score_display)
 
             self.slider_setup_based_on_uncertainty_value(self.color_overlay_slider_control,
                                                          self.uncertainty_array.min(),
@@ -261,7 +261,17 @@ class UVISWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         self.save_button.setVisible(True)
     #    self.play_game_with_ground_truth.setVisible(True)
         self.game_stop_button.setVisible(True)
+        self.modify_vis_button.setVisible(True)
         self.game_start_button.setVisible(False)
+
+        self.tumorBasedCollapsible.setVisible(False)
+        self.surgeonCentricCollapsible.setVisible(False)
+        self.forground_uncertaintycollapsible.setVisible(False)
+        self.blurinessColapsibbleButton.setVisible(False)
+        self.collapsible_button.setVisible(False)
+
+        self.score_label.setVisible(True)
+        self.score_display.setVisible(True)
 
         self.logic.game.game_started()
 
@@ -277,13 +287,33 @@ class UVISWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         self.save_button.setVisible(False)
      #   self.play_game_with_ground_truth.setVisible(False)
         self.game_stop_button.setVisible(False)
+        self.modify_vis_button.setVisible(False)
+
         self.game_start_button.setVisible(True)
         self.logic.game.game_stopped()
         self.on_game_level_changed(0)
         self.game_level.setCurrentIndex(0)
 
+    def modify_vis(self):
+        self.tumorBasedCollapsible.setVisible(True)
+        self.surgeonCentricCollapsible.setVisible(True)
+        self.forground_uncertaintycollapsible.setVisible(True)
+        self.blurinessColapsibbleButton.setVisible(True)
+        self.collapsible_button.setVisible(True)
+        self.score_label.setVisible(False)
+        self.score_display.setVisible(False)
+
+
     def play_game(self):
         self.reset_button.setVisible(True)
+        self.tumorBasedCollapsible.setVisible(False)
+        self.surgeonCentricCollapsible.setVisible(False)
+        self.forground_uncertaintycollapsible.setVisible(False)
+        self.blurinessColapsibbleButton.setVisible(False)
+        self.collapsible_button.setVisible(False)
+        self.score_label.setVisible(True)
+        self.score_display.setVisible(True)
+
         self.logic.play_game()
 
     def change_model_opacity(self, Button, opacity):
@@ -353,8 +383,11 @@ class UVISWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         self.reset_button.setVisible(False)
         if index == 2 or index == 3:
             self.play_wo_vis_button.setVisible(True)
+            self.modify_vis_button.setVisible(False)
         else:
             self.play_wo_vis_button.setVisible(False)
+            self.modify_vis_button.setVisible(True)
+
 
         self.logic.game_level_changed(index)
 
@@ -370,8 +403,9 @@ class UVISWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         self.layout.addWidget(self.uiWidget)
 
         select_input_button = self.uiWidget.findChild(qt.QPushButton, "select_Input_Volume")
+        self.collapsible_button = self.uiWidget.findChild(ctk.ctkCollapsibleButton, "inputsCollapsibleButton")
 
-      #  select_segmentation_button = self.uiWidget.findChild(qt.QPushButton, "select_segmentation")
+        #  select_segmentation_button = self.uiWidget.findChild(qt.QPushButton, "select_segmentation")
        # self.select_segmentation_label = self.uiWidget.findChild(qt.QLabel, "Segmentation_input_label")
 
         self.select_uncertainty_button = self.uiWidget.findChild(qt.QPushButton, "select_Uncertainty_Volume")
@@ -438,6 +472,33 @@ class UVISWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
 
         self.layout.addStretch(1)
 
+        self.score_display = qt.QLineEdit()
+        self.score_display.setReadOnly(
+            True)  # Set to read-only if you only want to display the score and not allow user edits
+        self.score_display.setFixedSize(200, 50)  # Increase the size of the score display
+        self.score_display.setAlignment(qt.Qt.AlignCenter)
+        # Add CSS styling for yellow color and larger font
+        self.score_display.setStyleSheet(
+            "background-color: #FFFF99; color: black; font-size: 20px; text-align: center;")
+
+        # Add a label for the score display
+        self.score_label = qt.QLabel("Score:")
+        self.score_label.setFixedSize(70, 50)
+        self.score_label.setStyleSheet("font-size: 20px;")  # Increase the font size
+
+        # Create a horizontal layout for centering
+        score_layout = qt.QHBoxLayout()
+        score_layout.addStretch(1)
+        score_layout.addWidget(self.score_label)
+        score_layout.addWidget(self.score_display)
+        score_layout.addStretch(1)
+
+        # Add the horizontal layout to the main layout before "Game Evaluation"
+        self.layout.addLayout(score_layout)
+
+        self.score_label.setVisible(False)
+        self.score_display.setVisible(False)
+
         self.tumorBasedCollapsible = ctk.ctkCollapsibleButton()
         self.tumorBasedCollapsible.text = "Tumor Based"
         self.tumorBasedCollapsible.setVisible(False)
@@ -453,6 +514,7 @@ class UVISWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
 
       #  self.bigger_uncertainty_slider = qt.QSlider(qt.Qt.Horizontal)
       #  self.slider_initial_setup(self.bigger_uncertainty_slider)
+
 
         self.bigger_uncertainty_slider_label = qt.QLabel("Maximum Offset: ")
       # self.opacity_label = qt.QLabel("Opacity: ")
@@ -542,7 +604,6 @@ class UVISWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
     #    tumor_based_layout.addWidget(self.spin_box_smaller, 6, 4, qt.Qt.AlignRight)
 
         tumorBasedCollapsibleLayout.addRow(tumor_based_layout)
-
         self.layout.addStretch(1)
 
         self.forground_uncertaintycollapsible = ctk.ctkCollapsibleButton()
@@ -718,38 +779,6 @@ class UVISWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         self.game_start_button = qt.QPushButton("Start")
         self.game_start_button.setFixedSize(50, 30)
 
-#        self.game_type_label = qt.QLabel("Choose game type:")
- #       self.game_type_label.setFixedSize(120, 30)
-  #      self.game_type_label.setVisible(False)
-
-   #     self.game_type = qt.QComboBox()
-    #    self.game_type.setFixedSize(120, 30)
-     #   self.game_type.addItem("Mining Game")
-      #  self.game_type.addItem("Medical Game")
-       # self.game_type.setCurrentIndex(0)
-        #self.game_type.setVisible(False)
-
-       # self.game_leve_label = qt.QLabel("Select Level:")
-       # self.game_leve_label.setFixedSize(120, 30)
-       # self.game_leve_label.setVisible(False)
-
-    #    self.game_level = qt.QComboBox()
-    #    self.game_level.setFixedSize(40, 30)
-    #    self.game_level.addItem("1")
-    #    self.game_level.addItem("2")
-    #    self.game_level.addItem("3")
-    #    self.game_level.addItem("4")
-    #    self.game_level.addItem("5")
-    #    self.game_level.addItem("6")
-    #    self.game_level.setCurrentIndex(0)
-    #    self.game_level.setVisible(False)
-
-    #    self.play_game_with_ground_truth = qt.QCheckBox("Play Game with Ground Truth")
-    #    self.play_game_with_ground_truth.setFixedSize(250, 30)
-    #    self.play_game_with_ground_truth.setVisible(False)
-    #    self.play_game_with_ground_truth.toggled.connect(
-     #             lambda: self.game.play_with_ground_truth_checked(self.play_game_with_ground_truth.isChecked()))
-
         self.game_start_button.clicked.connect(self.game_started)
 
         self.play_button = qt.QPushButton("Play")
@@ -773,25 +802,15 @@ class UVISWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         self.reset_button.setVisible(False)
 
         self.game_stop_button = qt.QPushButton("New user")
-        self.game_stop_button.setFixedSize(120, 30)
+        self.game_stop_button.setFixedSize(100, 30)
         self.game_stop_button.setVisible(False)
         self.game_stop_button.clicked.connect(self.game_stopped)
 
-        #  self.colorOverlay_checkBox = qt.QCheckBox("Color Overlay")
-        #   self.colorOverlay_checkBox.setFixedSize(130, 30)
+        self.modify_vis_button = qt.QPushButton("Modify Visualization")
+        self.modify_vis_button.setFixedSize(140, 30)
+        self.modify_vis_button.setVisible(False)
+        self.modify_vis_button.clicked.connect(self.modify_vis)
 
-        #    self.colorOverlay_checkBox.toggled.connect(
-        #      lambda: self.game.show_colorOverlay(self.colorOverlay_checkBox.isChecked()))
-
-        #   self.textMode_checkBox = qt.QCheckBox("Text Mode")
-        #    self.textMode_checkBox.setFixedSize(130, 30)
-
-        #   self.textMode_checkBox.toggled.connect(lambda: self.game.show_text(self.textMode_checkBox.isChecked()))
-
-        #   self.audioMode_checkBox = qt.QCheckBox("Audio Mode")
-        #   self.audioMode_checkBox.setFixedSize(130, 30)
-
-        #    self.audioMode_checkBox.toggled.connect(lambda: self.game.changeAudioMode(self.audioMode_checkBox.isChecked()))
 
         self.game_leve_label = qt.QLabel("Select Level:")
         self.game_leve_label.setFixedSize(120, 30)
@@ -823,8 +842,12 @@ class UVISWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         #    gameLayout.addWidget(self.audioMode_checkBox, 4, 0)
         gameLayout.addWidget(self.save_button, 5, 1)
         gameLayout.addWidget(self.game_stop_button, 5, 6)
+        gameLayout.addWidget(self.modify_vis_button, 5, 8)
+
 
         gameCollapsibleLayout.addRow(gameLayout)
+
+
 
 
     def slider_initial_setup(self, slider, value = None,  tick_interval= 10, fixed_size_1 = 200, fixed_size_2 = 30) :
@@ -898,13 +921,13 @@ class UVISLogic(ScriptedLoadableModuleLogic):
     #  self.id = self.crosshairNode.AddObserver(slicer.vtkMRMLCrosshairNode.CursorPositionModifiedEvent, self.onMouseMoved)
     #  self.pointListNode = slicer.util.getNode("vtkMRMLMarkupsFiducialNode1")
 
-    def uncertainty_volume_selected_initialization(self, input_volume_dir):
+    def uncertainty_volume_selected_initialization(self, input_volume_dir, score_display):
 
         self.uncertaintyForeground = UncertaintyForegroundVisualization(self.uncertaintyNode, self.input_volume_node)
         self.uncertaintyArray = slicer.util.arrayFromVolume(self.uncertaintyNode)
         self.text_mode_visualization = TexModeVisualization(self.uncertaintyArray)
         self.colorLUT = ColorLUT(self.uncertaintyForeground.uncertaintyVISVolumeNode)
-        self.game = EvaluationGame(self.uncertaintyArray, self.data_dir)
+        self.game = EvaluationGame(self.uncertaintyArray, self.data_dir, score_display)
         self.input_volume_array = slicer.util.arrayFromVolume(self.input_volume_node)
 
         self.backgroundModifiedVisualization = BackgroundModifiedVisualization(self.uncertaintyArray,
@@ -1100,9 +1123,7 @@ class UVISLogic(ScriptedLoadableModuleLogic):
         if self.is_filter_mode_selected:
             input_volume_node = self.backgroundModifiedVisualization.get_current_filtered_node()
             self.game.play(self.uncertaintyArray, input_volume_node)
-
         else:
-
             self.game.play(self.uncertaintyArray, self.input_volume_node)
 
     def reset(self):

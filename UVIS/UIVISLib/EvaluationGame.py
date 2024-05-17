@@ -18,7 +18,7 @@ class GameType(Enum):
 
 class EvaluationGame():
 
-    def __init__(self, uncertainty_array, data_dir):
+    def __init__(self, uncertainty_array, data_dir, score_display):
 
         self.app = slicer.app
         self.originalCursor = self.app.overrideCursor()
@@ -59,6 +59,7 @@ class EvaluationGame():
         self.player_username = None
 
         self.uncertainty_array = uncertainty_array
+        self.score_display = score_display
         self.levels = {
 
             '0': 'Case020',
@@ -499,7 +500,9 @@ class EvaluationGame():
         self.is_gaining_score_started = False
         self.are_all_the_pixels_inside_predicted_tumor = False
         self.totalScore = 0
-     #   self.setup_game_scene()
+        self.score_display.setText(str(self.totalScore))
+
+    #   self.setup_game_scene()
 
     def game_stopped(self):
         with open(self.project_root +'/GameResults/player_scores.json' , 'w') as f:
@@ -650,16 +653,18 @@ class EvaluationGame():
                             #    self.pred_label_volume = 0
                             self.volume_to_save[x,y,z] = 0
                                 # uncertainty_volume[z,y,x] = 0.0
+
                             if not self.minded_points[z, y, x]:
                                 self.minded_points[z, y, x] = 1
-                                temp_score = self.calculate_score_for(self.gt_label_volume[z, y, x], self.pred_label_volume[z, y, x])
-                                print(temp_score)
+                                temp_score = self.calculate_score_for(self.gt_label_volume[z, y, x],
+                                                                  self.pred_label_volume[z, y, x])
 
                                 if not self.is_tracing_boundaries:
                                      # if self.is_gaining_score_started:
                                     score += temp_score
                                     if temp_score < 0:
                                         number_of_incorrect_resect +=1
+
 
             if number_of_incorrect_resect > 0:
                     slicer.util.warningDisplay("You hit the healthy brain", windowTitle="Game Over")
@@ -679,13 +684,8 @@ class EvaluationGame():
                 self.totalScoreTextNode.SetNthControlPointLabel(0,  str(round(self.totalScore)))
                 self.score_leaderboard_list[self.current_ranking].SetNthControlPointLabel(0, str(round(self.totalScore)))
 
-       #     if score > 0:
-         #           self.scoreTextNode.SetNthControlPointLabel(0, "+" + str(round(score)))
-         #   else:
-               #     self.scoreTextNode.SetNthControlPointLabel(0, str(round(score)))
-
-         #   self.scoreTextNode.SetNthControlPointPosition(0, ras[0], ras[1], ras[2])
             slicer.util.updateVolumeFromArray(self.mri_image_node, self.mri_image_volume)
+            self.score_display.setText(str(self.totalScore))
 
     def calculate_score_for(self, gtScore, predScore):
 
@@ -759,6 +759,7 @@ class EvaluationGame():
         self.mri_image_volume = self.mri_image_volume_temp.copy()
         self.totalScore = 0
         self.totalScoreTextNode.SetNthControlPointLabel(0,  str(self.totalScore))
+        self.score_display.setText(str(self.totalScore))
 
     def show_color_overlay(self, isOn):
         if isOn:
@@ -829,8 +830,8 @@ class EvaluationGame():
          #   self.yellow_composite_node.SetBackgroundVolumeID(None)
             self.green_composite_node.SetForegroundOpacity(0.5)
 
-            for node in slicer.util.getNodesByClass('vtkMRMLSliceCompositeNode'):
-                node.SetLinkedControl(0)
+        #    for node in slicer.util.getNodesByClass('vtkMRMLSliceCompositeNode'):
+             #   node.SetLinkedControl(0)
 
         self.green_silce.fitSliceToBackground()
         self.green_slice_node.SetOrientation("Axial")
