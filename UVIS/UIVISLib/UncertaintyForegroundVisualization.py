@@ -85,15 +85,16 @@ class UncertaintyForegroundVisualization():
 
     def update_foreground_with_uncertainty_array(self, update_array):
 
-        if self.is_color_overlay_surgeon_centric:
-            update_array[~self.mask] = 0
+       # if self.is_color_overlay_surgeon_centric:
+       #     update_array[~self.mask] = 0
+
         slicer.util.updateVolumeFromArray(self.uncertaintyVISVolumeNode, update_array)
 
     def shpere_mask(self, radius):
 
         center = (2, int(radius), int(radius))
         gh = radius * 2
-        Y, X, Z = np.ogrid[:2, :gh, :gh]
+        Y, X, Z = np.ogrid[:1, :gh, :gh]
         dist_from_center = np.sqrt((X - center[0]) ** 2 + (Y - center[1]) ** 2 + (Z - center[1]) ** 2)
 
         mask = dist_from_center <= radius
@@ -104,19 +105,19 @@ class UncertaintyForegroundVisualization():
 
         if self.is_color_overlay_surgeon_centric:
 
-            #try:
+                try:
+                    uncertaintyArray_croped = self.surgeon_centric_array_calculation(point_Ijk)
+                    self.update_foreground_with_uncertainty_array(uncertaintyArray_croped)
+                    slicer.util.setSliceViewerLayers(foreground=self.uncertaintyVISVolumeNode, foregroundOpacity=0.5)
 
-                uncertaintyArray_croped = self.surgeon_centric_array_calculation(point_Ijk)
-                self.update_foreground_with_uncertainty_array(uncertaintyArray_croped)
-                slicer.util.setSliceViewerLayers(foreground=self.uncertaintyVISVolumeNode, foregroundOpacity=0.5)
+                    #self.uncertaintyVISVolumeNode.SetOrigin(
+                      #  [(ras[0] - (self.color_overlay_surgeon_centric_mask_margin / 2)), (ras[1] - (self.color_overlay_surgeon_centric_mask_margin / 2)),
+                       #  ras[2]])
+                    self.uncertaintyVISVolumeNode.SetOrigin(ras[0], ras[1], ras[2])
 
-                self.uncertaintyVISVolumeNode.SetOrigin(
-                    [(ras[0] - (self.color_overlay_surgeon_centric_mask_margin / 2)), (ras[1] - (self.color_overlay_surgeon_centric_mask_margin / 2)),
-                     0])
+                except:
+                    pass
 
-
-           # except Exception as e:
-            #    pass
         else:
 
            # slicer.util.setSliceViewerLayers(foreground=self.uncertaintyVISVolumeNode, foregroundOpacity=0.0)
@@ -189,10 +190,10 @@ class UncertaintyForegroundVisualization():
         uncertainty_array_copy = self.uncertaintyArray.copy()
         uncertainty_array_croped = uncertainty_array_copy[leftk:rightk, leftj:rigthj, lefti:righti]
 
-        uncertainty_array_croped = uncertainty_array_croped - self.uncertaintyArray.min()
-        uncertainty_array_croped = uncertainty_array_croped / (self.uncertaintyArray.max() - self.uncertaintyArray.min())
+    #    uncertainty_array_croped = uncertainty_array_croped - self.uncertaintyArray.min()
+    #    uncertainty_array_croped = uncertainty_array_croped / (self.uncertaintyArray.max() - self.uncertaintyArray.min())
 
-        uncertainty_array_croped = uncertainty_array_croped * 255
+   #     uncertainty_array_croped = uncertainty_array_croped * 255
 
         return uncertainty_array_croped
 

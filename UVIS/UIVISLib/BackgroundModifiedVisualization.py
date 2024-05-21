@@ -51,10 +51,25 @@ class BackgroundModifiedVisualization():
         self.layoutManager = slicer.app.layoutManager()
         # self.non_binary_mode_initiation()
 
+        self.slice_widget_red = self.layoutManager.sliceWidget('Red')
+        self.slice_widget_green = self.layoutManager.sliceWidget('Green')
+        self.slice_logic_red = self.slice_widget_red.sliceLogic()
+        self.slice_logic_green = self.slice_widget_green.sliceLogic()
+
         self.current_level = 0
         self.current_filtered_volume = self.filtered_all_volumes[self.current_level]['Blur'][0][:][:][:]
         slicer.util.setSliceViewerLayers(background=self.mainBackground)
 
+    def get_slice_view_info(self, sliceLogic):
+
+        zoom_factor = sliceLogic.GetSliceNode().GetFieldOfView()
+        center_position = sliceLogic.GetSliceNode().GetXYZOrigin()
+        return zoom_factor, center_position
+
+    def set_slice_view_info(self, sliceLogic, zoom_factor, center_position):
+
+        sliceLogic.GetSliceNode().SetFieldOfView(zoom_factor[0], zoom_factor[1], zoom_factor[2])
+        sliceLogic.GetSliceNode().SetXYZOrigin(center_position[0], center_position[1], center_position[2])
 
     def align_volume_based_on_input_node(self, volume_node):
 
@@ -83,6 +98,7 @@ class BackgroundModifiedVisualization():
             else:
                 os.makedirs(filterd_volume_path)
                 self.filter_calculations_initialization(filterd_volume_path, i)
+                self.initialize_filtered_volumes()
 
     def filter_calculations_initialization(self, filterd_volume_path, i):
 
@@ -109,8 +125,7 @@ class BackgroundModifiedVisualization():
             file_name = filter_type + '-filteredVolumes.npy'
             file_path = filterd_volume_path + file_name
             np.save(file_path, filtered_volumes_for_file)
-
-            self.filtered_all_volumes[i][filter_type] = filtered_volumes_for_file
+          #  self.filtered_all_volumes[i][filter_type] = filtered_volumes_for_file
 
     def generate_sigma_values(self, decimal_place, uncertainty_array):
 
@@ -130,9 +145,9 @@ class BackgroundModifiedVisualization():
                 if i < filter_threshold:
                     filtered_volume_list.append(image_array_copy)
                 else:
-                    filtered_volume_list.append(self.add_gaussian_noise(image_array_copy, mean=0,
+                    filtered_volume_list.append(self.add_gaussian_noise(image_array_copy, mean=3,
                                                                         std=(i - filter_threshold) * (
-                                                                                    70 * filter_level + 2.5)))
+                                                                                    20 * filter_level + 2.5)))
             elif filter_type == "Blur":
                 filtered_volume_list.append(gaussian_filter(image_array_copy,
                                                             sigma=(i - filter_threshold) * (0.25 * (filter_level + 1))))
@@ -174,7 +189,9 @@ class BackgroundModifiedVisualization():
     def set_filter_type(self, filter_type):
 
         self.filter_type = filter_type
-        self.current_filtered_volume = self.filtered_all_volumes[self.current_level][filter_type][0][:][:][:]
+        self.current_filtered_volume = self.filtered_all_volumes[self.current_level][self.filter_type][
+            (self.current_filter_level * round(self.uncertainty_array.max())) + self.current_filter_threshold]
+        self.visualize_filtered_background()
 
     def reset_blurring_variables(self):
 
@@ -218,13 +235,11 @@ class BackgroundModifiedVisualization():
             #self.current_filtered_volume = self.filtered_all_volumes[self.filter_type][filter_level * 9 + (
                   #      self.current_filter_threshold - round(self.uncertainty_array.min() - 1))][:][:][:]
             self.current_filtered_volume = self.filtered_all_volumes[self.current_level][self.filter_type][
-                (filter_level *round(self.uncertainty_array.max()))+ self.current_filter_threshold]
-
+                (self.current_filter_level *round(self.uncertainty_array.max()))+ self.current_filter_threshold]
             self.visualize_filtered_background()
 
     def filter_threshold_changed(self, filter_threshold):
         self.current_filter_threshold = filter_threshold
-
         if self.filter_type == 'Light':
             self.current_filtered_volume = (
                 self.filtered_all_volumes[self.current_level][self.filter_type][8 - (self.current_filter_threshold - 1)][:][:][:])
@@ -233,19 +248,18 @@ class BackgroundModifiedVisualization():
                 (self.current_filter_level *round(self.uncertainty_array.max()))+ self.current_filter_threshold]
         self.visualize_filtered_background()
 
-    def visualize_filtered_background(self, numberOfSections=None):
+    def visualize_filtered_background(self, sigmas=None):
 
-        if numberOfSections is not None:
-            self.numberOfSections = numberOfSections
-
+        zoom_factor, center_position = self.get_slice_view_info(self.slice_logic_red)
         slicer.util.updateVolumeFromArray(self.BackgroundModifedVisualization, self.current_filtered_volume)
 
         self.reset_blurring_variables()
         #slicer.util.setSliceViewerLayers(background=self.BackgroundModifedVisualization)
 
         self.red_composite_node.SetBackgroundVolumeID(self.BackgroundModifedVisualization.GetID())
-        current_silce = self.layoutManager.sliceWidget('Red')
-        current_silce.fitSliceToBackground()
+        self.slice_widget_red.fitSliceToBackground()
+        self.set_slice_view_info(self.slice_logic_red, zoom_factor, center_position)
+
 
     """
         if sigmas is not None and uncertaintyBorders is not None:

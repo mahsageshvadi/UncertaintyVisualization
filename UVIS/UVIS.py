@@ -160,7 +160,7 @@ class UVISWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
                                                          self.uncertainty_array.min(),
                                                          self.uncertainty_array.max() + 1,
                                                          self.apply_initial_threshold_for_color_overlay)
-            self.logic.filter_level_changed(4)
+            self.logic.filter_level_changed(1)
            # self.slider_setup_based_on_uncertainty_value(self.sigma_slider,
                                                #          self.filter_levels[0],
                                                #          self.filter_levels[-1],
@@ -398,9 +398,9 @@ class UVISWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         ScriptedLoadableModuleWidget.setup(self)
         slicer.util.setModuleHelpSectionVisible(False)
         slicer.util.setDataProbeVisible(False)
-        slicer.util.setStatusBarVisible(False)
-        slicer.util.setToolbarsVisible(False)
-        slicer.util.setPythonConsoleVisible(False)
+     #   slicer.util.setStatusBarVisible(False)
+     #   slicer.util.setToolbarsVisible(False)
+     #   slicer.util.setPythonConsoleVisible(True)
 
         self.uiWidget = slicer.util.loadUI(self.resourcePath('UI/UVIS.ui'))
         self.layout.addWidget(self.uiWidget)
@@ -705,14 +705,14 @@ class UVISWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         self.cursorType = qt.QComboBox()
         self.cursorType.setFixedSize(130, 30)
 
-        self.cursorType.addItem("Star Burst")
-        self.cursorType.addItem("Cross 2D")
+     #   self.cursorType.addItem("Star Burst")
+    #    self.cursorType.addItem("Cross 2D")
         self.cursorType.addItem("Cross Dot")
-        self.cursorType.addItem("Thick Cross 2D")
+    #    self.cursorType.addItem("Thick Cross 2D")
         self.cursorType.addItem("Sphere")
         self.cursorType.addItem("Just Text")
 
-        self.cursorType.setCurrentIndex(3)
+        self.cursorType.setCurrentIndex(0)
 
         text_mode_layout = qt.QGridLayout()
         text_mode_layout.addWidget(self.turnOnCheckBox, 0, 0)
@@ -928,7 +928,7 @@ class UVISLogic(ScriptedLoadableModuleLogic):
 
         self.uncertaintyForeground = UncertaintyForegroundVisualization(self.uncertaintyNode, self.input_volume_node)
         self.uncertaintyArray = slicer.util.arrayFromVolume(self.uncertaintyNode)
-        self.text_mode_visualization = TexModeVisualization(self.uncertaintyArray)
+        self.text_mode_visualization = TexModeVisualization(self.uncertaintyArray, self.uncertaintyNode)
         self.colorLUT = ColorLUT(self.uncertaintyForeground.uncertaintyVISVolumeNode)
         self.game = EvaluationGame(self.uncertaintyArray, self.data_dir, score_display)
         self.input_volume_array = slicer.util.arrayFromVolume(self.input_volume_node)
@@ -1037,11 +1037,13 @@ class UVISLogic(ScriptedLoadableModuleLogic):
         self.audioMode.setAudioFile(index)
 
     def on_cursor_changed(self, index):
-
-        if index == 4 or index == 5:
-            index += 1
-
-        self.text_mode_visualization.change_glyph_type(index + 1)
+        if index == 0:
+            index = 3
+        if index == 1:
+            index = 6
+        if index == 2:
+            index = 7
+        self.text_mode_visualization.change_glyph_type(index)
 
     def bluriness_number_of_section_changed(self, index, blurriness_intercity=1, not_bluredd_uncertainty_increase=0):
 
@@ -1068,8 +1070,7 @@ class UVISLogic(ScriptedLoadableModuleLogic):
                                     i - 1))
 
         uncertainty_borders.append(self.uncertaintyArray.max())
-        self.backgroundModifiedVisualization.visualize_filtered_background(sigmas, uncertainty_borders,
-                                                                           current_number_of_sections)
+        self.backgroundModifiedVisualization.visualize_filtered_background(sigmas)
 
     def filter_level_changed(self, filter_level):
         self.backgroundModifiedVisualization.filter_level_changed(filter_level)
@@ -1162,7 +1163,7 @@ class UVISLogic(ScriptedLoadableModuleLogic):
             self.backgroundModifiedVisualization.visualize_filtered_background()
 
         self.uncertaintyForeground.game_level_changes_uncertainty_foreground(self.uncertaintyNode, self.input_volume_node)
-        self.text_mode_visualization.game_level_changes_text_mode(self.uncertaintyArray)
+        self.text_mode_visualization.game_level_changes_text_mode(self.uncertaintyArray, self.uncertaintyNode, self.current_level)
 
         self.tumorBasedViS.game_level_changes_tumor_based(self.uncertaintyArray,self.data_dir, level,  self.input_volume_node )
         if not self.is_tumor_based_mode_selected:
