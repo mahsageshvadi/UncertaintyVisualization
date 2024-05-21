@@ -170,7 +170,7 @@ class UVISWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
                                                          round(self.uncertainty_array.min()),
                                                          round(self.uncertainty_array.max()-1),
                                                          self.filter_threshold_changed,
-                                                         self.current_filter_threshold_changed * 10)
+                                                         0)
 
             self.slider_setup_based_on_uncertainty_value(self.audio_threshold_slider,
                                                          round(self.uncertainty_array.min() * 100),
@@ -250,6 +250,7 @@ class UVISWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         self.blurinessColapsibbleButton.setVisible(True)
         self.tumorBasedCollapsible.setVisible(True)
         self.surgeonCentricCollapsible.setVisible(True)
+        self.collapsible_button.setVisible(False)
 
     def game_started(self):
       #  self.game_type_label.setVisible(True)
@@ -268,7 +269,6 @@ class UVISWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         self.surgeonCentricCollapsible.setVisible(False)
         self.forground_uncertaintycollapsible.setVisible(False)
         self.blurinessColapsibbleButton.setVisible(False)
-        self.collapsible_button.setVisible(False)
 
         self.score_label.setVisible(True)
         self.score_display.setVisible(True)
@@ -299,7 +299,6 @@ class UVISWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         self.surgeonCentricCollapsible.setVisible(True)
         self.forground_uncertaintycollapsible.setVisible(True)
         self.blurinessColapsibbleButton.setVisible(True)
-        self.collapsible_button.setVisible(True)
         self.score_label.setVisible(False)
         self.score_display.setVisible(False)
 
@@ -310,7 +309,6 @@ class UVISWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         self.surgeonCentricCollapsible.setVisible(False)
         self.forground_uncertaintycollapsible.setVisible(False)
         self.blurinessColapsibbleButton.setVisible(False)
-        self.collapsible_button.setVisible(False)
         self.score_label.setVisible(True)
         self.score_display.setVisible(True)
 
@@ -398,6 +396,11 @@ class UVISWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
     def setup(self):
 
         ScriptedLoadableModuleWidget.setup(self)
+        slicer.util.setModuleHelpSectionVisible(False)
+        slicer.util.setDataProbeVisible(False)
+        slicer.util.setStatusBarVisible(False)
+        slicer.util.setToolbarsVisible(False)
+        slicer.util.setPythonConsoleVisible(False)
 
         self.uiWidget = slicer.util.loadUI(self.resourcePath('UI/UVIS.ui'))
         self.layout.addWidget(self.uiWidget)
@@ -432,7 +435,7 @@ class UVISWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         bluriness_l_threshold_slider = qt.QLabel("Uncertainty Threshold:")
 
         self.bluriness_threshold_slider = qt.QSlider(qt.Qt.Horizontal)
-        self.slider_initial_setup(self.bluriness_threshold_slider, self.current_filter_threshold_changed)
+        self.slider_initial_setup( self.bluriness_threshold_slider, 0, self.current_filter_threshold_changed)
 
         self.slider_value_label = qt.QLabel(str(self.current_filter_threshold_changed) + " mm")
 
@@ -621,12 +624,12 @@ class UVISWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         onOffVis = qt.QCheckBox("Enable")
         onOffVis.toggled.connect(lambda: self.logic.turn_visualization_off(onOffVis.isChecked()))
 
-        self.color_candidate_1= qt.QPushButton("Color_1")
-        self.color_candidate_1.setFixedSize(70, 30)
+        self.color_candidate_1= qt.QPushButton("Orange/Green")
+        self.color_candidate_1.setFixedSize(100, 30)
         self.color_candidate_1.clicked.connect(lambda: self.apply_candidate_color((14, 101, 20), (255, 135, 47)))
 
-        self.color_candidate_2= qt.QPushButton("Color_2")
-        self.color_candidate_2.setFixedSize(70, 30)
+        self.color_candidate_2= qt.QPushButton("Purple Gradient")
+        self.color_candidate_2.setFixedSize(100, 30)
         self.color_candidate_2.clicked.connect(lambda: self.apply_candidate_color((75, 111, 193), (113, 33, 103)))
 
 
@@ -645,11 +648,11 @@ class UVISWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
       #  self.select_color_overlay_two_one_color.setCurrentIndex(0)
         # self.select_color_overlay_two_one_color.currentIndexChanged.connect(self.color_overlay_two_one_changed)
 
-        self.reset_button = qt.QPushButton("Reset")
-        self.reset_button.setFixedSize(50, 30)
+       # self.reset_button = qt.QPushButton("Reset")
+      #  self.reset_button.setFixedSize(50, 30)
        # self.binary_CheckBox = qt.QCheckBox("Binary Colors")
       #  self.binary_CheckBox.toggled.connect(lambda: self.select_binary_color_map(self.binary_CheckBox.isChecked()))
-        self.reset_button.connect('clicked()', self.reset_colormap_selected)
+      #  self.reset_button.connect('clicked()', self.reset_colormap_selected)
 
         self.color_overlay_slider_control = qt.QSlider(qt.Qt.Horizontal)
         self.slider_initial_setup(self.color_overlay_slider_control)
@@ -661,7 +664,7 @@ class UVISWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         colort_mode_layout.addWidget(self.color_candidate_1, 1, 0, qt.Qt.AlignLeft)
         colort_mode_layout.addWidget(self.color_candidate_2, 2, 0, qt.Qt.AlignLeft)
       #  colort_mode_layout.addWidget(self.select_color_overlay_two_one_color, 1, 2, qt.Qt.AlignRight)
-        colort_mode_layout.addWidget(self.reset_button, 2, 2, qt.Qt.AlignRight)
+     #   colort_mode_layout.addWidget(self.reset_button, 2, 2, qt.Qt.AlignRight)
     #    colort_mode_layout.addWidget(self.binary_CheckBox, 1, 2)
         slider_layout_color = qt.QHBoxLayout()
         slider_layout_color.addWidget(self.color_overlay_slider_control)
@@ -772,7 +775,7 @@ class UVISWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         self.layout.addStretch(1)
 
         gameCollapsibleButton = ctk.ctkCollapsibleButton()
-        gameCollapsibleButton.text = "Game Evaluation"
+        gameCollapsibleButton.text = "Evaluation Game"
         self.layout.addWidget(gameCollapsibleButton)
         gameCollapsibleLayout = qt.QFormLayout(gameCollapsibleButton)
 
@@ -966,6 +969,7 @@ class UVISLogic(ScriptedLoadableModuleLogic):
       #  self.colorLogic.AddDefaultColorLegendDisplayNode(self.uncertaintyForeground)
       #  self.colorLogic.GetColorLegendDisplayNode(self.uncertaintyForeground).SetSize(0.1, 0.5)
       #  self.colorLogic.GetColorLegendDisplayNode(self.uncertaintyForeground).SetTitleText("")
+
         self.colorLUT.apply_color_map()
 
     def flicker_mode_selected(self, isChecked):

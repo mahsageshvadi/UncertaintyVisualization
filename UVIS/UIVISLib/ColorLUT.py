@@ -6,7 +6,9 @@ class ColorLUT():
     def __init__(self, uncertaintyVISVolumeNode):
 
         self.firstColor = None
+        self.set_first_color((75, 111, 193))
         self.secondColor = None
+        self.set_second_color((113, 33, 103))
         self.threshold = 122
         self.uncertaintyVISVolumeNode = uncertaintyVISVolumeNode
         self.displayNode = self.uncertaintyVISVolumeNode.GetDisplayNode()
