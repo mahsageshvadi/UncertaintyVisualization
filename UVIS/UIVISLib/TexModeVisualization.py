@@ -35,7 +35,6 @@ class TexModeVisualization():
         point_Ijk = [int(round(c)) for c in point_Ijk[0:3]]
         self.move_markup(ras, point_Ijk)
 
-
     def change_glyph_type(self, index):
 
         self.markupsNode.GetDisplayNode().SetGlyphType(index)
@@ -61,7 +60,7 @@ class TexModeVisualization():
                     round(self.uncertaintyArray[point_Ijk[2]][point_Ijk[1]][point_Ijk[0]])) + " mm")
                 self.markupsNode.SetNthControlPointPosition(0, ras[0], ras[1], ras[2])
                 self.markupsNode.GetDisplayNode().SetGlyphSize(
-                    round(self.uncertaintyArray[point_Ijk[2]][point_Ijk[1]][point_Ijk[0]]*2, 2))
+                    round((self.uncertaintyArray[point_Ijk[2]][point_Ijk[1]][point_Ijk[0]]/0.9766)*2, 2))
 
             except Exception as e:
                 pass

@@ -39,7 +39,6 @@ class UVIS(ScriptedLoadableModule):
         """
 
 
-
 class Button(enum.Enum):
     One = 1
     Two = 2
@@ -396,8 +395,8 @@ class UVISWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
     def setup(self):
 
         ScriptedLoadableModuleWidget.setup(self)
-        slicer.util.setModuleHelpSectionVisible(False)
-        slicer.util.setDataProbeVisible(False)
+      #  slicer.util.setModuleHelpSectionVisible(False)
+      #  slicer.util.setDataProbeVisible(False)
      #   slicer.util.setStatusBarVisible(False)
      #   slicer.util.setToolbarsVisible(False)
      #   slicer.util.setPythonConsoleVisible(True)
@@ -722,7 +721,7 @@ class UVISWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
 
         self.surgeon_centric_checkBox = qt.QCheckBox("Enable")
         self.surgeon_centric_checkBox.toggled.connect(
-            lambda: self.logic.surgeon_centric_mode_selected(self.surgeon_centric_checkBox.isChecked()))
+            lambda: self.logic.color_overlay_surgeon_centric_mode_selected(self.surgeon_centric_checkBox.isChecked()))
 
         surgeon_centric_mode_layout = qt.QGridLayout()
         surgeon_centric_mode_layout.addWidget(self.surgeon_centric_checkBox, 0, 0, qt.Qt.AlignTop)
@@ -939,11 +938,12 @@ class UVISLogic(ScriptedLoadableModuleLogic):
         self.audioMode = AudioMode(self.uncertaintyArray)
         self.tumorBasedViS = TumorBasedVis(self.uncertaintyArray , input_volume_dir, self.input_volume_node)
 
-    def surgeon_centric_mode_selected(self, isChecked):
+    def color_overlay_surgeon_centric_mode_selected(self, isChecked):
 
         self.current_visualization["Color Overlay Surgeon Centric"] = isChecked
+        self.uncertaintyForeground.set_surgeon_centric_mode(isChecked)
+
         if isChecked:
-            self.uncertaintyForeground.set_surgeon_centric_mode(isChecked)
             #  if self.colorLUT.colorTableForSurgeonCentric is not None:
             #    self.uncertaintyForeground.displayNode.SetAndObserveColorNodeID(self.colorLUT.colorTableForSurgeonCentric.GetID())
 
@@ -957,8 +957,6 @@ class UVISLogic(ScriptedLoadableModuleLogic):
             self.numberOfActiveOnMouseMoveAtts -= 1
             if self.numberOfActiveOnMouseMoveAtts == 0:
                 self.crosshairNode.RemoveObserver(self.id)
-
-            self.uncertaintyForeground.set_surgeon_centric_mode(isChecked)
 
             self.uncertaintyForeground.visualize()
 
@@ -1179,7 +1177,6 @@ class UVISLogic(ScriptedLoadableModuleLogic):
             self.toggle_visualization(False)
         else:
             self.toggle_visualization(True)
-
 
     def toggle_visualization(self, is_on):
 

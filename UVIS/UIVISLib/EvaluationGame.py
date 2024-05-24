@@ -120,6 +120,8 @@ class EvaluationGame():
 
         self.yellow_slice_node.SetOrientation("Axial")
         self.layoutManager = slicer.app.layoutManager()
+        self.interactor = self.layoutManager.sliceWidget("Red").sliceView().interactorStyle().GetInteractor()
+
         self.green_silce = self.layoutManager.sliceWidget('Green')
         self.red_slice = self.layoutManager.sliceWidget('Red')
         self.initialSize = 1
@@ -386,6 +388,10 @@ class EvaluationGame():
         self.stop_game_shortcut.setKey(qt.QKeySequence('D'))
         self.stop_game_shortcut.connect('activated()',self.game_is_done)
 
+    def game_is_done_callback(self, caller, event):
+
+        self.game_is_done()
+
     def game_is_done(self):
 
         self.app.restoreOverrideCursor()
@@ -412,6 +418,9 @@ class EvaluationGame():
         if is_gaining is True:
             self.app.setOverrideCursor(qt.Qt.BlankCursor)
         self.is_gaining_score_started = is_gaining
+
+    def set_gaining_score_callback(self, caller, event):
+        self.set_gaining_score(True)
 
     def remove_game_shortcuts(self):
 
@@ -494,6 +503,9 @@ class EvaluationGame():
         #  self.generate_user_sees(
         self.reset()
         self.cursorNode.SetDisplayVisibility(True)
+        self.interactor.AddObserver(vtk.vtkCommand.LeftButtonPressEvent, self.set_gaining_score_callback, 10.0)
+        self.interactor.AddObserver(vtk.vtkCommand.LeftButtonReleaseEvent, self.game_is_done, 10.0)
+
         self.crosshair_node_id = self.crosshairNode.AddObserver(slicer.vtkMRMLCrosshairNode.CursorPositionModifiedEvent,
                                                                 self.on_mouse_moved)
 
