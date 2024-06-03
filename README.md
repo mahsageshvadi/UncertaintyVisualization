@@ -25,6 +25,7 @@ Clone the repository and install dependencies:
 ```shell
 git clone https://github.com/mahsageshvadi/UncertaintyVisualization.git
 cd UncertaintyVisualization
+```
 
 ### How to get started
 
