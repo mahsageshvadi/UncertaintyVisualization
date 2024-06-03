@@ -215,6 +215,7 @@ class UncertaintyForegroundVisualization():
 
     def game_level_changes_uncertainty_foreground(self, uncertainty_node, input_image_node):
 
+        self.input_image_node = input_image_node
         self.align_volume_based_on_input_node(self.uncertaintyVISVolumeNode, input_image_node)
         self.initialize_nodes(uncertainty_node)
         self.update_foreground_with_uncertainty_array(self.uncertaintyArray)

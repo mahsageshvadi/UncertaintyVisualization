@@ -75,7 +75,7 @@ class EvaluationGame():
       #  self.get_ground_truth_from_dir()
 
         self.pred_label_volume_node = None
-        self.setup_game_shortcuts()
+      #  self.setup_game_shortcuts()
 
         self.cursorNode = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLMarkupsFiducialNode")
         self.cursorNode.AddControlPoint([0, 0, 0])
@@ -146,7 +146,11 @@ class EvaluationGame():
         self.show_leader_board_data()
 
         self.is_tracing_boundaries = False
+        self.is_observer_added = False
 
+        self.pred_label_volume_node = self.pred_label_node_list[0]
+        self.pred_label_volume = self.pred_label_volumes_list[0]
+        self.pred_label_volume_temp = self.pred_label_volume.copy()
 
 
         # Set initial glyph size
@@ -376,26 +380,24 @@ class EvaluationGame():
         self.mri_image_node_spacing = self.mri_image_node.GetSpacing()
         self.cursorNode.GetDisplayNode().SetGlyphSize(self.cursor_radius_for_game * self.mri_image_node_spacing[0]*2)
 
+  #  def setup_game_shortcuts(self):
 
-    def setup_game_shortcuts(self):
-
-        self.play_game_shortcut = qt.QShortcut(slicer.util.mainWindow())
-        self.play_game_shortcut.setKey(qt.QKeySequence('S'))
-        self.play_game_shortcut.connect('activated()', lambda: self.set_gaining_score(True))
+    #    self.play_game_shortcut = qt.QShortcut(slicer.util.mainWindow())
+    #    self.play_game_shortcut.setKey(qt.QKeySequence('S'))
+     #   self.play_game_shortcut.connect('activated()', lambda: self.set_gaining_score(True))
 
 
-        self.stop_game_shortcut = qt.QShortcut(slicer.util.mainWindow())
-        self.stop_game_shortcut.setKey(qt.QKeySequence('D'))
-        self.stop_game_shortcut.connect('activated()',self.game_is_done)
+     #   self.stop_game_shortcut = qt.QShortcut(slicer.util.mainWindow())
+     #   self.stop_game_shortcut.setKey(qt.QKeySequence('D'))
+     #   self.stop_game_shortcut.connect('activated()',self.game_is_done)
 
     def game_is_done_callback(self, caller, event):
-
+        self.cursorNode.SetDisplayVisibility(False)
         self.game_is_done()
 
     def game_is_done(self):
 
         self.app.restoreOverrideCursor()
-        self.cursorNode.SetDisplayVisibility(False)
         nifti_img = nib.Nifti1Image(self.volume_to_save, affine=np.eye(4))
 
         if self.is_tracing_boundaries:
@@ -408,18 +410,43 @@ class EvaluationGame():
 
         self.set_gaining_score(False)
         if self.is_tracing_boundaries:
+            self.remove_game_observers()
             response = slicer.util.confirmYesNoDisplay("Are you sure you want to mark it as done?",
                                                        windowTitle="Confirm Action")
-            if response:
+            if not response:
                 self.reset()
+                self.add_game_observers()
+
+    def add_game_observers(self):
+        if not self.is_observer_added:
+            self.interactor_left_id = self.interactor.AddObserver(vtk.vtkCommand.LeftButtonPressEvent,
+                                                                  self.set_gaining_score_callback, 10.0)
+            self.interactor_right_id = self.interactor.AddObserver(vtk.vtkCommand.LeftButtonReleaseEvent,
+                                                                   self.game_is_done_callback, 10.0)
+            self.is_observer_added = True
+
+    def remove_game_observers(self):
+        if self.is_observer_added:
+            self.interactor.RemoveObserver(self.interactor_left_id)
+            self.interactor.RemoveObserver(self.interactor_right_id)
+            self.is_observer_added = False
+
+
+    def cleanup_game(self, final_cleanup=False):
+        # Clean up logic and observer removal if the game is truly done
+        self.interactor.RemoveObserver(self.interactor_left_id)
+        self.interactor.RemoveObserver(self.interactor_right_id)
+
+        if final_cleanup:
+            self.is_game_done_confirmed = False  # Reset the game done flag after final cleanup
 
     def set_gaining_score(self, is_gaining):
-
         if is_gaining is True:
             self.app.setOverrideCursor(qt.Qt.BlankCursor)
         self.is_gaining_score_started = is_gaining
 
     def set_gaining_score_callback(self, caller, event):
+        self.cursorNode.SetDisplayVisibility(True)
         self.set_gaining_score(True)
 
     def remove_game_shortcuts(self):
@@ -499,12 +526,12 @@ class EvaluationGame():
         self.volume_to_save = np.ones(
             (self.mri_image_volume.shape[2], self.mri_image_volume.shape[1], self.mri_image_volume.shape[0]))
         self.mri_image_volume_temp = self.mri_image_volume.copy()
+        self.pred_label_volume_temp = self.pred_label_volume.copy()
         self.minded_points = np.zeros(shape=(self.mri_image_volume.shape[0], self.mri_image_volume.shape[1], self.mri_image_volume.shape[2]))
         #  self.generate_user_sees(
         self.reset()
         self.cursorNode.SetDisplayVisibility(True)
-        self.interactor.AddObserver(vtk.vtkCommand.LeftButtonPressEvent, self.set_gaining_score_callback, 10.0)
-        self.interactor.AddObserver(vtk.vtkCommand.LeftButtonReleaseEvent, self.game_is_done, 10.0)
+        self.add_game_observers()
 
         self.crosshair_node_id = self.crosshairNode.AddObserver(slicer.vtkMRMLCrosshairNode.CursorPositionModifiedEvent,
                                                                 self.on_mouse_moved)
@@ -662,14 +689,14 @@ class EvaluationGame():
                     for x in x_range:
                         if (x - point_Ijk[0]) ** 2 + (y - point_Ijk[1]) ** 2 + (z - point_Ijk[2]) ** 2 <= self.cursor_radius_for_game ** 2:
                             self.mri_image_volume[z, y, x] = self.mri_image_volume.min()
-                            #    self.pred_label_volume = 0
+                            self.pred_label_volume[z, y, x] = 0
                             self.volume_to_save[x,y,z] = 0
-                                # uncertainty_volume[z,y,x] = 0.0
+                            # uncertainty_volume[z,y,x] = 0.0
 
                             if not self.minded_points[z, y, x]:
                                 self.minded_points[z, y, x] = 1
                                 temp_score = self.calculate_score_for(self.gt_label_volume[z, y, x],
-                                                                  self.pred_label_volume[z, y, x])
+                                                                  self.pred_label_volume_temp[z, y, x])
 
                                 if not self.is_tracing_boundaries:
                                      # if self.is_gaining_score_started:
@@ -697,6 +724,8 @@ class EvaluationGame():
                 self.score_leaderboard_list[self.current_ranking].SetNthControlPointLabel(0, str(round(self.totalScore)))
 
             slicer.util.updateVolumeFromArray(self.mri_image_node, self.mri_image_volume)
+            slicer.util.updateVolumeFromArray(self.pred_label_volume_node, self.pred_label_volume)
+
             self.score_display.setText(str(self.totalScore))
 
     def calculate_score_for(self, gtScore, predScore):
@@ -763,12 +792,15 @@ class EvaluationGame():
         self.cursorNode.SetDisplayVisibility(False)
         if self.crosshair_node_id is not None:
             self.crosshairNode.RemoveObserver(self.crosshair_node_id)
+            self.crosshair_node_id = None
 
         self.volume_to_save = np.ones(
             (self.mri_image_volume.shape[2], self.mri_image_volume.shape[1], self.mri_image_volume.shape[0]))
 
         slicer.util.updateVolumeFromArray(self.mri_image_node, self.mri_image_volume_temp)
+        slicer.util.updateVolumeFromArray(self.pred_label_volume_node, self.pred_label_volume_temp)
         self.mri_image_volume = self.mri_image_volume_temp.copy()
+        self.pred_label_volume = self.pred_label_volume_temp.copy()
         self.totalScore = 0
         self.totalScoreTextNode.SetNthControlPointLabel(0,  str(self.totalScore))
         self.score_display.setText(str(self.totalScore))

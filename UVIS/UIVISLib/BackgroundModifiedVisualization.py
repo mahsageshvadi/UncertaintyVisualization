@@ -251,6 +251,8 @@ class BackgroundModifiedVisualization():
     def visualize_filtered_background(self, sigmas=None):
 
         zoom_factor, center_position = self.get_slice_view_info(self.slice_logic_red)
+        zoom_factor_green, center_position_green = self.get_slice_view_info(self.slice_logic_green)
+
         slicer.util.updateVolumeFromArray(self.BackgroundModifedVisualization, self.current_filtered_volume)
 
         self.reset_blurring_variables()
@@ -259,6 +261,7 @@ class BackgroundModifiedVisualization():
         self.red_composite_node.SetBackgroundVolumeID(self.BackgroundModifedVisualization.GetID())
         self.slice_widget_red.fitSliceToBackground()
         self.set_slice_view_info(self.slice_logic_red, zoom_factor, center_position)
+        self.set_slice_view_info(self.slice_logic_green, zoom_factor_green, center_position_green)
 
 
     """

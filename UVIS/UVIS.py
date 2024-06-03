@@ -331,7 +331,7 @@ class UVISWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
 
     def filter_mode_selected(self, in_checked):
 
-        self.logic.current_visualization["Volume Filtering"] = True
+        self.logic.current_visualization["Volume Filtering"] = in_checked
 
         self.logic.is_filter_mode_selected = in_checked
 
@@ -356,7 +356,7 @@ class UVISWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
 
     def tumor_based_mode_selected(self, in_checked):
 
-        self.logic.current_visualization["Tumor Based"] = True
+        self.logic.current_visualization["Tumor Based"] = in_checked
         self.logic.is_tumor_based_mode_selected = in_checked
 
         self.logic.tumorBasedViS.enable_tumorVIS(in_checked)
@@ -1123,11 +1123,11 @@ class UVISLogic(ScriptedLoadableModuleLogic):
         if self.current_level == 2 or self.current_level == 3:
             self.toggle_visualization(False)
 
-        if self.is_filter_mode_selected:
-            input_volume_node = self.backgroundModifiedVisualization.get_current_filtered_node()
-            self.game.play(self.uncertaintyArray, input_volume_node)
-        else:
-            self.game.play(self.uncertaintyArray, self.input_volume_node)
+     #   if self.is_filter_mode_selected:
+        #    input_volume_node = self.backgroundModifiedVisualization.get_current_filtered_node()
+        #   self.game.play(self.uncertaintyArray, input_volume_node)
+       # else:
+        self.game.play(self.uncertaintyArray, self.input_volume_node)
 
     def reset(self):
         self.game.reset()
