@@ -26,10 +26,9 @@ Clone the repository and install dependencies:
 git clone https://github.com/mahsageshvadi/UncertaintyVisualization.git
 cd UncertaintyVisualization
 
-## How to get started
+### How to get started
 
 1. **Install dependencies:**
-   ```shell
    pip install -r requirements.txt
 
 2. **Prepare your data:**
