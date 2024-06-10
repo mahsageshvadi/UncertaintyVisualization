@@ -18,11 +18,11 @@ class GameType(Enum):
 
 class EvaluationGame():
 
-    def __init__(self, uncertainty_array, data_dir, score_display):
+    def __init__(self, uncertainty_array, data_dir, score_display, negative_score_display,
+                 first_mri_image_volume_for_reset):
 
         self.app = slicer.app
         self.originalCursor = self.app.overrideCursor()
-
 
         self.game_type = None
         self.crosshairNode = slicer.util.getNode("Crosshair")
@@ -39,27 +39,30 @@ class EvaluationGame():
         self.mri_image_node = None
         self.mri_image_volume = None
         self.mri_image_volume_temp = None
-        self.volume_to_save = None
+        self.mri_image_volume_for_reset = first_mri_image_volume_for_reset
+
         self.gt_volume = None
 
         self.totalScoreTextNode = None
         self.scoreTextNode = None
         self.crosshair_node_id = None
         self.initialize_scoring_texts()
-        self.initialize_scoring_texts()
 
         self.origin = (0, 0, 0)
-       # self.spacing = (0.5, 0.5, 0.5)
-        self.directionMatrix  = [[1, 0, 0],
-                           [0, -1, 0],
-                           [0, 0, -1]]
+        # self.spacing = (0.5, 0.5, 0.5)
+        self.directionMatrix = [[1, 0, 0],
+                                [0, -1, 0],
+                                [0, 0, -1]]
 
         self.totalScore = 0
+        self.total_incorrect_score = 0
         self.player_info = {}
+        self.player_picked_visualization_while_playing = {}
         self.player_username = None
 
         self.uncertainty_array = uncertainty_array
         self.score_display = score_display
+        self.negative_score_display = negative_score_display
         self.levels = {
 
             '0': 'Case020',
@@ -72,10 +75,10 @@ class EvaluationGame():
 
         self.gt_label_volume_node = None
         self.gt_label_volume = None
-      #  self.get_ground_truth_from_dir()
+        #  self.get_ground_truth_from_dir()
 
         self.pred_label_volume_node = None
-      #  self.setup_game_shortcuts()
+        #  self.setup_game_shortcuts()
 
         self.cursorNode = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLMarkupsFiducialNode")
         self.cursorNode.AddControlPoint([0, 0, 0])
@@ -99,19 +102,17 @@ class EvaluationGame():
         self.gt_volume_lists = []
         self.load_levels()
 
-
         self.project_root = os.path.dirname(__file__)
         self.leaderboard_node = slicer.util.loadVolume(
-            self.project_root +'/Art/LeaderBoard.jpeg', properties={"show": False})
+            self.project_root + '/Art/LeaderBoard.jpeg', properties={"show": False})
 
-        self.score_node = slicer.util.loadVolume(self.project_root +'/Art/Scoring.jpeg',
-                                            properties={"show": False})
+        self.score_node = slicer.util.loadVolume(self.project_root + '/Art/Scoring.jpeg',
+                                                 properties={"show": False})
 
         self.green_composite_node = slicer.mrmlScene.GetNodeByID('vtkMRMLSliceCompositeNodeGreen')
         self.yellow_composite_node = slicer.mrmlScene.GetNodeByID('vtkMRMLSliceCompositeNodeYellow')
 
         self.red_composite_node = slicer.mrmlScene.GetNodeByID('vtkMRMLSliceCompositeNodeRed')
-
 
         self.green_slice_node = slicer.mrmlScene.GetNodeByID('vtkMRMLSliceNodeGreen')
         self.green_slice_node.SetOrientation("Axial")
@@ -129,14 +130,23 @@ class EvaluationGame():
         self.sizeIncrement = 1
 
         self.level_data_template = {
-                "level_0": {"score": 0, "extend_of_resection": 0, "time": 0},
-                "level_1": {"score": 0, "extend_of_resection": 0, "time": 0},
-                "level_2": {"score": 0, "extend_of_resection": 0, "time": 0},
-                "level_3": {"score": 0, "extend_of_resection": 0, "time": 0},
-            }
+            "level_0": {"score": 0, "negative_score": 0, "extend_of_resection": 0, "time": 0},
+            "level_1": {"score": 0, "negative_score": 0,"extend_of_resection": 0, "time": 0},
+            "level_2": {"score": 0, "negative_score": 0,"extend_of_resection": 0, "time": 0},
+            "level_3": {"score": 0, "negative_score": 0,"extend_of_resection": 0, "time": 0},
+        }
+
+        self.save_vis_template = {
+            "level_0": [],
+            "level_1": [],
+            "level_2": [],
+            "level_3": [],
+
+        }
 
         self.score_leaderboard_list = []
         self.username_leaderboard_list = []
+        self.negative_score_leaderboard_list = []
         self.leader_board_data = []
         self.leader_board_init()
         self.initialize_leaderboard_for_this_level(0)
@@ -152,6 +162,21 @@ class EvaluationGame():
         self.pred_label_volume = self.pred_label_volumes_list[0]
         self.pred_label_volume_temp = self.pred_label_volume.copy()
 
+        self.volume_to_save = np.ones(
+            (self.pred_label_volume.shape[2], self.pred_label_volume.shape[1], self.pred_label_volume.shape[0]))
+
+        self.previous_vis = {
+            "Volume Filtering": False,
+            "Tumor Based": False,
+            "Color Overlay": False,
+            "Text Mode": False,
+            "Color Overlay Surgeon Centric": False,
+            "Audio": False,
+            "Flicker": False
+        }
+
+        self.game_is_played_for_saving = False
+        self.is_game_over = False
 
         # Set initial glyph size
 
@@ -201,6 +226,7 @@ class EvaluationGame():
         self.list_of_ceters = []
         self.list_of_axesLength = []
         self.list_of_variation_volumes = []
+
     def leader_board_init(self):
 
         greenViewNode = self.green_silce.mrmlSliceNode()
@@ -210,7 +236,6 @@ class EvaluationGame():
             displayNode = markups_node_username.GetDisplayNode()
             if displayNode:
                 displayNode.SetViewNodeIDs([greenViewNode.GetID()])
-
             markups_node_username.AddControlPoint([0, 0, 0])
             markups_node_username.SetDisplayVisibility(True)
             markups_node_username.GetDisplayNode().SetUseGlyphScale(0)
@@ -219,9 +244,9 @@ class EvaluationGame():
             markups_node_username.GetDisplayNode().SetActiveColor(0, 0, 0)
             markups_node_username.GetDisplayNode().SetTextScale(4)
             markups_node_username.GetDisplayNode().SetGlyphType(1)
-            markups_node_username.SetNthControlPointLabel(0,'')
+            markups_node_username.SetNthControlPointLabel(0, '')
             markups_node_username.GetDisplayNode().SetGlyphSize(0)
-            markups_node_username.SetNthControlPointPosition(0, -534.520,-725.707 - 260 *i, 0.000)
+            markups_node_username.SetNthControlPointPosition(0, -534.520, -725.707 - 260 * i, 0.000)
             self.username_leaderboard_list.append(markups_node_username)
 
             markups_node_score = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLMarkupsFiducialNode")
@@ -238,16 +263,37 @@ class EvaluationGame():
             markups_node_score.GetDisplayNode().SetGlyphType(1)
             markups_node_score.SetNthControlPointLabel(0, '')
             markups_node_score.GetDisplayNode().SetGlyphSize(0)
-            markups_node_score.SetNthControlPointPosition(0, -1547.677,-725.707 - 260 *i, 0.000)
+            markups_node_score.SetNthControlPointPosition(0, -1379.677, -725.707 - 260 * i, 0.000)
 
             self.score_leaderboard_list.append(markups_node_score)
 
+            markups_node_negative_score = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLMarkupsFiducialNode")
+            displayNode = markups_node_negative_score.GetDisplayNode()
+            if displayNode:
+                displayNode.SetViewNodeIDs([greenViewNode.GetID()])
+            markups_node_negative_score.AddControlPoint([0, 0, 0])
+            markups_node_negative_score.SetDisplayVisibility(True)
+            markups_node_negative_score.GetDisplayNode().SetUseGlyphScale(0)
+            markups_node_negative_score.GetDisplayNode().SetGlyphType(3)
+            markups_node_negative_score.GetDisplayNode().SetSelectedColor(0, 0, 0)
+            markups_node_negative_score.GetDisplayNode().SetActiveColor(0, 0, 0)
+            markups_node_negative_score.GetDisplayNode().SetTextScale(4)
+            markups_node_negative_score.GetDisplayNode().SetGlyphType(1)
+            markups_node_negative_score.SetNthControlPointLabel(0, '')
+            markups_node_negative_score.GetDisplayNode().SetGlyphSize(0)
+            markups_node_negative_score.SetNthControlPointPosition(0, -1819.520, -725.707 - 260 * i, 0.000)
+
+            self.negative_score_leaderboard_list.append((markups_node_negative_score))
+
     def initialize_leaderboard_for_this_level(self, level):
         self.leader_board_data = []
+        self.leader_board_negative_data = []
         current_level_text = 'level_' + str(level)
         for name, data in self.player_info.items():
             self.leader_board_data.append((name, data[current_level_text]['score']))
+            self.leader_board_negative_data.append((name, data[current_level_text]['negative_score']))
         self.leader_board_data = sorted(self.leader_board_data, key=lambda x: x[1], reverse=True)
+        self.leader_board_negative_data = sorted(self.leader_board_negative_data, key=lambda x: x[1], reverse=True)
 
     def show_gt_in_green_view(self, level=0):
         self.green_composite_node.SetBackgroundVolumeID(None)
@@ -257,15 +303,33 @@ class EvaluationGame():
 
         self.green_composite_node.SetBackgroundVolumeID(self.gt_label_node_lists[level].GetID())
 
+    def reveal_results(self):
+        self.show_leader_board_data()
+        if self.crosshair_node_id is not None:
+            self.crosshairNode.RemoveObserver(self.crosshair_node_id)
+            self.crosshair_node_id = None
+
     def show_leader_board_data(self):
         for i in range(5):
             if i < len(self.leader_board_data) and i >= 0:
                 if self.leader_board_data[i] is not None:
                     self.username_leaderboard_list[i].SetNthControlPointLabel(0, self.leader_board_data[i][0])
                     self.score_leaderboard_list[i].SetNthControlPointLabel(0, str(self.leader_board_data[i][1]))
+                    if self.leader_board_negative_data[i][1] != 0:
+                        self.negative_score_leaderboard_list[i].SetNthControlPointLabel(0, "- " +str(self.leader_board_negative_data[i][1]))
+                    else:
+                        self.negative_score_leaderboard_list[i].SetNthControlPointLabel(0, str(self.leader_board_negative_data[i][1]))
+
+
     def update_leader_board(self):
         self.leader_board_data = sorted(self.leader_board_data, key=lambda x: x[1], reverse=True)
-        self.show_leader_board_data()
+        order_mapping = {name: index for index, (name, _) in enumerate(self.leader_board_data)}
+
+        self.leader_board_negative_data = sorted(self.leader_board_negative_data,
+                                                   key=lambda x: order_mapping.get(x[0], float('inf')))
+
+     #   self.leader_board_negative_data = sorted(self.leader_board_negative_data, key=lambda x: x[1], reverse=True)
+      #  self.show_leader_board_data()
         self.get_current_ranking()
 
     def get_current_ranking(self):
@@ -279,18 +343,21 @@ class EvaluationGame():
             self.higher_score = self.leader_board_data[0][1]
         else:
 
-            self.higher_score = self.leader_board_data[self.current_ranking-1][1]
+            self.higher_score = self.leader_board_data[self.current_ranking - 1][1]
 
-        if self.current_ranking == len(self.leader_board_data)-1:
+        if self.current_ranking == len(self.leader_board_data) - 1:
             self.lower_score = self.leader_board_data[self.current_ranking][1]
         else:
-            self.lower_score = self.leader_board_data[self.current_ranking+1][1]
+            self.lower_score = self.leader_board_data[self.current_ranking + 1][1]
 
-    def align_volumes( self, volume_node):
-         #   volume_node.SetOrigin(self.origin)
-            volume_node.SetIJKToRASDirections(self.directionMatrix[0][0], self.directionMatrix[0][1], self.directionMatrix[0][2],
-                                                self.directionMatrix[1][0], self.directionMatrix[1][1], self.directionMatrix[1][2],
-                                                self.directionMatrix[2][0], self.directionMatrix[2][1], self.directionMatrix[2][2])
+    def align_volumes(self, volume_node):
+        #   volume_node.SetOrigin(self.origin)
+        volume_node.SetIJKToRASDirections(self.directionMatrix[0][0], self.directionMatrix[0][1],
+                                          self.directionMatrix[0][2],
+                                          self.directionMatrix[1][0], self.directionMatrix[1][1],
+                                          self.directionMatrix[1][2],
+                                          self.directionMatrix[2][0], self.directionMatrix[2][1],
+                                          self.directionMatrix[2][2])
 
     def initialize_scoring_texts(self):
 
@@ -319,56 +386,50 @@ class EvaluationGame():
             case_name = value
             current_data_dir = self.data_dir + case_name
             input_volume_node = slicer.util.loadVolume(current_data_dir + '/' +
-                                                            case_name + '_0_pred.nii',
-                                                            properties={"show": False})
+                                                       case_name + '_0_pred.nii',
+                                                       properties={"show": False})
             self.align_volumes(input_volume_node)
             self.level_node_lists.append(input_volume_node)
 
             uncertaintyNode = slicer.util.loadVolume(current_data_dir + '/' +
-                                                          case_name + '_0_uncertainty.nii',
-                                                          properties={"show": False})
+                                                     case_name + '_0_uncertainty.nii',
+                                                     properties={"show": False})
             self.align_volumes(uncertaintyNode)
             self.uncertainty_node_lists.append(uncertaintyNode)
 
             try:
-                self.pred_label_volume_node = slicer.util.loadVolume(current_data_dir +  '/' +
-                                                        case_name + '_0_pred_label.nii'
-                                                                , properties={"show": False})
+                self.pred_label_volume_node = slicer.util.loadVolume(current_data_dir + '/' +
+                                                                     case_name + '_0_pred_label.nii'
+                                                                     , properties={"show": False})
             except:
-                self.pred_label_volume_node = slicer.util.loadVolume(current_data_dir +  '/' +
-                                                        case_name + '_0_pred_label.nrrd', properties={"show": False})
+                self.pred_label_volume_node = slicer.util.loadVolume(current_data_dir + '/' +
+                                                                     case_name + '_0_pred_label.nrrd',
+                                                                     properties={"show": False})
 
             self.align_volumes(self.pred_label_volume_node)
             self.pred_label_node_list.append(self.pred_label_volume_node)
             pred_label_volume = slicer.util.arrayFromVolume(self.pred_label_volume_node)
             self.pred_label_volumes_list.append(pred_label_volume)
 
-            gt_label_volume_node = slicer.util.loadVolume(current_data_dir +  '/' +
-                                                        case_name + '_0_gt_label.nii', properties={"show": False})
+            gt_label_volume_node = slicer.util.loadVolume(current_data_dir + '/' +
+                                                          case_name + '_0_gt_label.nii', properties={"show": False})
             self.align_volumes(gt_label_volume_node)
             self.gt_label_node_lists.append(gt_label_volume_node)
 
             gt_label_volume = slicer.util.arrayFromVolume(gt_label_volume_node)
             self.gt_label_volume_list.append(gt_label_volume)
 
-            gt_volume_node = slicer.util.loadVolume(current_data_dir +  '/' +
-                                                        case_name + '_0_gt.nii', properties={"show": False})
+            gt_volume_node = slicer.util.loadVolume(current_data_dir + '/' +
+                                                    case_name + '_0_gt.nii', properties={"show": False})
             self.align_volumes(gt_volume_node)
             self.gt_node_lists.append(gt_volume_node)
 
             gt_volume = slicer.util.arrayFromVolume(gt_volume_node)
             self.gt_volume_lists.append(gt_volume)
 
-       # self.uncertainty_array = self.uncertainty_node_lists[ee].tovolume
-      #  self.gt_label_volume_node =
-      #  self.gt_label_volume =
-      #  self.gt_volume_node =
-      #  self.gt_volume =
-
-
         self.uncertainty_node = self.uncertainty_node_lists[0]
         self.uncertainty_array = slicer.util.arrayFromVolume(self.uncertainty_node)
-     #   self.input_volume_dir = input_volume_dir
+        #   self.input_volume_dir = input_volume_dir
         self.mri_image_node = self.level_node_lists[0]
         self.gt_label_volume_node = self.gt_label_node_lists[0]
         self.gt_label_volume = self.gt_label_volume_list[0]
@@ -378,18 +439,17 @@ class EvaluationGame():
         self.pred_label_volume = self.pred_label_volumes_list[0]
 
         self.mri_image_node_spacing = self.mri_image_node.GetSpacing()
-        self.cursorNode.GetDisplayNode().SetGlyphSize(self.cursor_radius_for_game * self.mri_image_node_spacing[0]*2)
+        self.cursorNode.GetDisplayNode().SetGlyphSize(self.cursor_radius_for_game * self.mri_image_node_spacing[0] * 2)
 
-  #  def setup_game_shortcuts(self):
+    #  def setup_game_shortcuts(self):
 
     #    self.play_game_shortcut = qt.QShortcut(slicer.util.mainWindow())
     #    self.play_game_shortcut.setKey(qt.QKeySequence('S'))
-     #   self.play_game_shortcut.connect('activated()', lambda: self.set_gaining_score(True))
+    #   self.play_game_shortcut.connect('activated()', lambda: self.set_gaining_score(True))
 
-
-     #   self.stop_game_shortcut = qt.QShortcut(slicer.util.mainWindow())
-     #   self.stop_game_shortcut.setKey(qt.QKeySequence('D'))
-     #   self.stop_game_shortcut.connect('activated()',self.game_is_done)
+    #   self.stop_game_shortcut = qt.QShortcut(slicer.util.mainWindow())
+    #   self.stop_game_shortcut.setKey(qt.QKeySequence('D'))
+    #   self.stop_game_shortcut.connect('activated()',self.game_is_done)
 
     def game_is_done_callback(self, caller, event):
         self.cursorNode.SetDisplayVisibility(False)
@@ -398,24 +458,36 @@ class EvaluationGame():
     def game_is_done(self):
 
         self.app.restoreOverrideCursor()
-        nifti_img = nib.Nifti1Image(self.volume_to_save, affine=np.eye(4))
-
-        if self.is_tracing_boundaries:
-            save_file_name = '{}/GameResults/{}_{}_wo_boundary.nii'.format(self.project_root, self.player_username,
-                                                                         self.current_level)
-        else:
-            save_file_name = '{}/GameResults/{}_{}.nii'.format(self.project_root, self.player_username,
-                                                              self.current_level)
-        nifti_img.to_filename(save_file_name)
-
         self.set_gaining_score(False)
+
+        if not self.is_tracing_boundaries:
+
+            self.leader_board_data[self.current_ranking] = (self.player_username, self.totalScore)
+            self.leader_board_negative_data[self.current_ranking] = (self.player_username, self.total_incorrect_score)
+            if self.totalScore < self.lower_score or self.totalScore > self.higher_score:
+                self.update_leader_board()
+
+            self.totalScoreTextNode.SetNthControlPointLabel(0, str(round(self.totalScore)))
+           # self.score_leaderboard_list[self.current_ranking].SetNthControlPointLabel(0,
+                                                                              #        str(round(self.totalScore)))
+
+        if self.game_is_played_for_saving:
+            nifti_img = nib.Nifti1Image(self.volume_to_save, affine=np.eye(4))
+
+            save_file_name = '{}/GameResults/{}_{}.nii'.format(self.project_root, self.player_username,
+                                                               self.current_level)
+            nifti_img.to_filename(save_file_name)
+
         if self.is_tracing_boundaries:
             self.remove_game_observers()
             response = slicer.util.confirmYesNoDisplay("Are you sure you want to mark it as done?",
                                                        windowTitle="Confirm Action")
             if not response:
-                self.reset()
                 self.add_game_observers()
+            else:
+                self.toggle_tracing_boundary_mode(False)
+                self.save_extend_of_resection_w_o_b()
+                self.reset()
 
     def add_game_observers(self):
         if not self.is_observer_added:
@@ -430,7 +502,6 @@ class EvaluationGame():
             self.interactor.RemoveObserver(self.interactor_left_id)
             self.interactor.RemoveObserver(self.interactor_right_id)
             self.is_observer_added = False
-
 
     def cleanup_game(self, final_cleanup=False):
         # Clean up logic and observer removal if the game is truly done
@@ -467,12 +538,15 @@ class EvaluationGame():
         self.pred_label_volume = slicer.util.arrayFromVolume(self.pred_label_volume_node)
         self.align_volumes(self.pred_label_volume_node)
 
-    def align_volumes( self, volume_node):
-         #   volume_node.SetSpacing(self.spacing)
-          #  volume_node.SetOrigin(self.origin)
-            volume_node.SetIJKToRASDirections(self.directionMatrix[0][0], self.directionMatrix[0][1], self.directionMatrix[0][2],
-                                                self.directionMatrix[1][0], self.directionMatrix[1][1], self.directionMatrix[1][2],
-                                                self.directionMatrix[2][0], self.directionMatrix[2][1], self.directionMatrix[2][2])
+    def align_volumes(self, volume_node):
+        #   volume_node.SetSpacing(self.spacing)
+        #  volume_node.SetOrigin(self.origin)
+        volume_node.SetIJKToRASDirections(self.directionMatrix[0][0], self.directionMatrix[0][1],
+                                          self.directionMatrix[0][2],
+                                          self.directionMatrix[1][0], self.directionMatrix[1][1],
+                                          self.directionMatrix[1][2],
+                                          self.directionMatrix[2][0], self.directionMatrix[2][1],
+                                          self.directionMatrix[2][2])
 
     def get_ground_truth_from_dir(self):
 
@@ -517,19 +591,24 @@ class EvaluationGame():
         self.generate_ground_truth_level_1()
 """
 
-    def play(self, uncertainty_array, input_node):
+    def play(self, uncertainty_array, input_node, current_visualization):
 
+        self.game_is_played_for_saving = True
+        if self.previous_vis != current_visualization:
+            self.save_visualization(current_visualization)
+            self.previous_vis = current_visualization.copy()
 
         self.uncertainty_array = uncertainty_array
         self.mri_image_node = input_node
         self.mri_image_volume = slicer.util.arrayFromVolume(input_node)
-        self.volume_to_save = np.ones(
-            (self.mri_image_volume.shape[2], self.mri_image_volume.shape[1], self.mri_image_volume.shape[0]))
-        self.mri_image_volume_temp = self.mri_image_volume.copy()
-        self.pred_label_volume_temp = self.pred_label_volume.copy()
-        self.minded_points = np.zeros(shape=(self.mri_image_volume.shape[0], self.mri_image_volume.shape[1], self.mri_image_volume.shape[2]))
+        # self.volume_to_save = np.ones(
+        #    (self.mri_image_volume.shape[2], self.mri_image_volume.shape[1], self.mri_image_volume.shape[0]))
+        # self.mri_image_volume_temp = self.mri_image_volume.copy()
+        #  self.pred_label_volume_temp = self.pred_label_volume.copy()
+        self.minded_points = np.zeros(
+            shape=(self.mri_image_volume.shape[0], self.mri_image_volume.shape[1], self.mri_image_volume.shape[2]))
         #  self.generate_user_sees(
-        self.reset()
+        #   self.reset()
         self.cursorNode.SetDisplayVisibility(True)
         self.add_game_observers()
 
@@ -538,13 +617,14 @@ class EvaluationGame():
 
         self.is_gaining_score_started = False
         self.are_all_the_pixels_inside_predicted_tumor = False
-        self.totalScore = 0
+
         self.score_display.setText(str(self.totalScore))
+        self.negative_score_display.setText(str(self.total_incorrect_score))
 
     #   self.setup_game_scene()
 
     def game_stopped(self):
-        with open(self.project_root +'/GameResults/player_scores.json' , 'w') as f:
+        with open(self.project_root + '/GameResults/player_scores.json', 'w') as f:
             json.dump(self.player_info, f)
 
         slicer.mrmlScene.RemoveNode(self.ground_truth_node)
@@ -552,9 +632,9 @@ class EvaluationGame():
         self.yellow_composite_node.SetBackgroundVolumeID(None)
         self.green_composite_node.SetBackgroundVolumeID(None)
 
-    def game_started(self, text = "Enter Username:"):
+    def game_started(self, text="Enter Username:"):
         try:
-            with open(self.project_root +'/GameResults/player_scores.json', 'r') as f:
+            with open(self.project_root + '/GameResults/player_scores.json', 'r') as f:
                 self.player_info = json.load(f)
         except:
             pass
@@ -562,7 +642,7 @@ class EvaluationGame():
         self.yellow_composite_node.SetBackgroundVolumeID(self.score_node.GetID())
         current_silce = self.layoutManager.sliceWidget('Yellow')
         current_silce.fitSliceToBackground()
-        username = self.get_input_data(text )
+        username = self.get_input_data(text)
         self.player_username = username
         self.add_user(self.player_username)
         self.initialize_leaderboard_for_this_level(self.current_level)
@@ -578,6 +658,7 @@ class EvaluationGame():
             for level, stats in self.level_data_template.items():
                 user_data[level] = {stat: value for stat, value in stats.items()}
             self.player_info[username] = user_data
+            self.player_picked_visualization_while_playing[username] = self.save_vis_template
         else:
             self.game_started(f"User '{username}' already exists.")
 
@@ -647,23 +728,23 @@ class EvaluationGame():
 
         cv2.ellipse(image, center, axesLength, angle, 0, 360, (255, 255, 255), -1)
 
-    def calculate_score_for(self, gtScore, userSeesScore):
+   # def calculate_score_for(self, gtScore, userSeesScore):
 
-        if gtScore == 1 and userSeesScore == 0:
+   #     if gtScore == 1 and userSeesScore == 0:
 
-            return 1
+       #     return 1
 
-        elif gtScore == 1 and userSeesScore == 1:
+    #    elif gtScore == 1 and userSeesScore == 1:
 
-            return 1
+      #      return 1
+#
+    #    elif gtScore == 0 and userSeesScore == 1:
 
-        elif gtScore == 0 and userSeesScore == 1:
+     #       return -1
 
-            return -1
+     #   elif gtScore == 0 and userSeesScore == 0:
 
-        elif gtScore == 0 and userSeesScore == 0:
-
-            return -1
+       #     return -1
 
     def on_mouse_moved(self, observer, eventid):
 
@@ -676,9 +757,12 @@ class EvaluationGame():
         volumeRasToIjk.MultiplyPoint(np.append(ras, 1.0), point_Ijk)
         point_Ijk = [int(round(c)) for c in point_Ijk[0:3]]
 
-        z_range = range(max(0, point_Ijk[2] - self.cursor_radius_for_game), min(self.mri_image_volume.shape[0], point_Ijk[2] + self.cursor_radius_for_game))
-        y_range = range(max(0, point_Ijk[1] - self.cursor_radius_for_game), min(self.mri_image_volume.shape[1], point_Ijk[1] + self.cursor_radius_for_game))
-        x_range = range(max(0, point_Ijk[0] - self.cursor_radius_for_game), min(self.mri_image_volume.shape[2], point_Ijk[0] + self.cursor_radius_for_game))
+        z_range = range(max(0, point_Ijk[2] - self.cursor_radius_for_game),
+                        min(self.mri_image_volume.shape[0], point_Ijk[2] + self.cursor_radius_for_game))
+        y_range = range(max(0, point_Ijk[1] - self.cursor_radius_for_game),
+                        min(self.mri_image_volume.shape[1], point_Ijk[1] + self.cursor_radius_for_game))
+        x_range = range(max(0, point_Ijk[0] - self.cursor_radius_for_game),
+                        min(self.mri_image_volume.shape[2], point_Ijk[0] + self.cursor_radius_for_game))
 
         score = 0
         number_of_incorrect_resect = 0
@@ -687,56 +771,70 @@ class EvaluationGame():
             for z in range(1):
                 for y in y_range:
                     for x in x_range:
-                        if (x - point_Ijk[0]) ** 2 + (y - point_Ijk[1]) ** 2 + (z - point_Ijk[2]) ** 2 <= self.cursor_radius_for_game ** 2:
+                        if (x - point_Ijk[0]) ** 2 + (y - point_Ijk[1]) ** 2 + (
+                                z - point_Ijk[2]) ** 2 <= self.cursor_radius_for_game ** 2:
                             self.mri_image_volume[z, y, x] = self.mri_image_volume.min()
                             self.pred_label_volume[z, y, x] = 0
-                            self.volume_to_save[x,y,z] = 0
+                            self.volume_to_save[x, y, z] = 0
                             # uncertainty_volume[z,y,x] = 0.0
 
                             if not self.minded_points[z, y, x]:
                                 self.minded_points[z, y, x] = 1
+
                                 temp_score = self.calculate_score_for(self.gt_label_volume[z, y, x],
-                                                                  self.pred_label_volume_temp[z, y, x])
+                                                                      self.pred_label_volume_temp[z, y, x])
 
                                 if not self.is_tracing_boundaries:
-                                     # if self.is_gaining_score_started:
+                                    # if self.is_gaining_score_started:
                                     score += temp_score
-                                    if temp_score < 0:
-                                        number_of_incorrect_resect +=1
+                                    if temp_score == 0:
+                                        number_of_incorrect_resect += 1
 
-
-            if number_of_incorrect_resect > 0:
-                    slicer.util.warningDisplay("You hit the healthy brain", windowTitle="Game Over")
-                    self.game_is_done()
-                    self.reset()
-                    self.totalScore = -1
-
+            if self.total_incorrect_score > 1000:
+                #   slicer.util.warningDisplay("You hit the healthy brain", windowTitle="Game Over")
+                #    self.totalScore = -1
+                self.app.restoreOverrideCursor()
+                self.cursorNode.SetDisplayVisibility(False)
+                if self.crosshair_node_id is not None:
+                    self.crosshairNode.RemoveObserver(self.crosshair_node_id)
+                    self.crosshair_node_id = None
+                self.game_is_done()
+            #  self.reset()
             else:
                 self.totalScore += score
+                self.total_incorrect_score += number_of_incorrect_resect
+            # print(self.total_incorrect_score)
 
-            if not self.is_tracing_boundaries:
+           # if not self.is_tracing_boundaries:
 
-                self.leader_board_data[self.current_ranking] = (self.player_username ,self.totalScore)
-                if self.totalScore < self.lower_score or self.totalScore > self.higher_score:
-                    self.update_leader_board()
+               # self.leader_board_data[self.current_ranking] = (self.player_username, self.totalScore)
+              #  if self.totalScore < self.lower_score or self.totalScore > self.higher_score:
+                #    self.update_leader_board()
 
-                self.totalScoreTextNode.SetNthControlPointLabel(0,  str(round(self.totalScore)))
-                self.score_leaderboard_list[self.current_ranking].SetNthControlPointLabel(0, str(round(self.totalScore)))
+              #  self.totalScoreTextNode.SetNthControlPointLabel(0, str(round(self.totalScore)))
+              #  self.score_leaderboard_list[self.current_ranking].SetNthControlPointLabel(0,
+                                                                                       #   str(round(self.totalScore)))
 
             slicer.util.updateVolumeFromArray(self.mri_image_node, self.mri_image_volume)
             slicer.util.updateVolumeFromArray(self.pred_label_volume_node, self.pred_label_volume)
 
             self.score_display.setText(str(self.totalScore))
+            if self.total_incorrect_score != 0:
+                self.negative_score_display.setText("-" + str(self.total_incorrect_score))
+            else:
+                self.negative_score_display.setText(str(self.total_incorrect_score))
 
     def calculate_score_for(self, gtScore, predScore):
 
         if gtScore == 0 and predScore == 0:
 
-            return -10000
+            return 0
+        #  return -10000
 
         elif gtScore == 0 and predScore == 1:
 
-            return -100
+            return 0
+        #    return -100
 
         elif gtScore == 1 and predScore == 1:
 
@@ -746,7 +844,9 @@ class EvaluationGame():
 
             return 10
 
+
             # NSCursor.hide()
+
     def generate_user_sees(self):
         number_of_variations = 10
 
@@ -797,13 +897,16 @@ class EvaluationGame():
         self.volume_to_save = np.ones(
             (self.mri_image_volume.shape[2], self.mri_image_volume.shape[1], self.mri_image_volume.shape[0]))
 
-        slicer.util.updateVolumeFromArray(self.mri_image_node, self.mri_image_volume_temp)
+        slicer.util.updateVolumeFromArray(self.mri_image_node, self.mri_image_volume_for_reset)
         slicer.util.updateVolumeFromArray(self.pred_label_volume_node, self.pred_label_volume_temp)
-        self.mri_image_volume = self.mri_image_volume_temp.copy()
-        self.pred_label_volume = self.pred_label_volume_temp.copy()
+        # self.mri_image_volume = self.mri_image_volume_temp.copy()
+        #  self.pred_label_volume = self.pred_label_volume_temp.copy()
         self.totalScore = 0
-        self.totalScoreTextNode.SetNthControlPointLabel(0,  str(self.totalScore))
+        self.total_incorrect_score = 0
+        self.totalScoreTextNode.SetNthControlPointLabel(0, str(self.totalScore))
         self.score_display.setText(str(self.totalScore))
+        self.negative_score_display.setText(str(self.total_incorrect_score))
+        self.is_game_over = False
 
     def show_color_overlay(self, isOn):
         if isOn:
@@ -826,16 +929,48 @@ class EvaluationGame():
         self.VisualizationOn = True
 
     def save_data(self):
+
         current_level_for_dict = "level_" + str(self.current_level)
-        #self.player_info[self.player_username] =
         self.player_info[self.player_username][current_level_for_dict]["score"] = self.totalScore
-        self.player_info[self.player_username][current_level_for_dict]["extend_of_resection"] = np.count_nonzero(self.user_sees_volume != 255)
+        self.player_info[self.player_username][current_level_for_dict]["negative_score"] = self.total_incorrect_score
+
+        self.player_info[self.player_username][current_level_for_dict]["extend_of_resection"] = np.count_nonzero(
+            self.volume_to_save == 0)
+
         self.player_info[self.player_username][current_level_for_dict]["time"] = 0
 
-        with open(self.project_root +'/GameResults/player_scores.json' , 'w') as f:
+        with open(self.project_root + '/GameResults/player_scores.json', 'w') as f:
             json.dump(self.player_info, f)
 
-    def play_new_level(self,  level):
+    def save_extend_of_resection_w_o_b(self):
+
+        current_level_for_dict = "level_" + str(self.current_level)
+        self.player_info[self.player_username][current_level_for_dict][
+            "extend_of_resection_without_visualization"] = np.count_nonzero(
+            self.volume_to_save == 0)
+        with open(self.project_root + '/GameResults/player_scores.json', 'w') as f:
+            json.dump(self.player_info, f)
+
+        nifti_img = nib.Nifti1Image(self.volume_to_save, affine=np.eye(4))
+        save_file_name = '{}/GameResults/{}_{}_wo_boundary.nii'.format(self.project_root, self.player_username,
+                                                                       self.current_level)
+
+        nifti_img.to_filename(save_file_name)
+
+    def save_visualization(self, visualization):
+
+        current_level_for_dict = "level_" + str(self.current_level)
+        self.player_picked_visualization_while_playing[self.player_username][current_level_for_dict].append(
+            visualization)
+
+        with open(self.project_root + '/GameResults/Visualization_picked_by_users.json', 'w') as f:
+            json.dump(self.player_picked_visualization_while_playing, f)
+
+    def play_new_level(self, level):
+        self.game_is_done()
+        self.reset()
+
+        self.game_is_played_for_saving = False
 
         self.current_level = level
         self.initialize_leaderboard_for_this_level(self.current_level)
@@ -852,8 +987,11 @@ class EvaluationGame():
         self.gt_volume = self.gt_volume_lists[level]
         self.pred_label_volume_node = self.pred_label_node_list[level]
         self.pred_label_volume = self.pred_label_volumes_list[level]
+        self.pred_label_volume_temp = self.pred_label_volume.copy()
+
         self.mri_image_node_spacing = self.mri_image_node.GetSpacing()
-        self.cursorNode.GetDisplayNode().SetGlyphSize(self.cursor_radius_for_game * self.mri_image_node_spacing[0]*2)
+        self.mri_image_volume_for_reset = slicer.util.arrayFromVolume(self.mri_image_node).copy()
+        self.cursorNode.GetDisplayNode().SetGlyphSize(self.cursor_radius_for_game * self.mri_image_node_spacing[0] * 2)
 
         self.yellow_slice_node.SetOrientation("Axial")
         self.yellow_composite_node.SetBackgroundVolumeID(self.score_node.GetID())
@@ -868,14 +1006,13 @@ class EvaluationGame():
                 node.SetLinkedControl(0)
 
         if level == 0 or level == 1:
-
             self.green_composite_node.SetBackgroundVolumeID(self.gt_label_volume_node.GetID())
             self.green_composite_node.SetForegroundVolumeID(self.pred_label_volume_node.GetID())
-         #   self.yellow_composite_node.SetBackgroundVolumeID(None)
+            #   self.yellow_composite_node.SetBackgroundVolumeID(None)
             self.green_composite_node.SetForegroundOpacity(0.5)
 
         #    for node in slicer.util.getNodesByClass('vtkMRMLSliceCompositeNode'):
-             #   node.SetLinkedControl(0)
+        #   node.SetLinkedControl(0)
 
         self.green_silce.fitSliceToBackground()
         self.green_slice_node.SetOrientation("Axial")
@@ -893,7 +1030,6 @@ class EvaluationGame():
 
         return self.uncertainty_array
 
-    def toggle_tracing_boundary_mode(self,tracing_mode):
+    def toggle_tracing_boundary_mode(self, tracing_mode):
 
         self.is_tracing_boundaries = tracing_mode
-

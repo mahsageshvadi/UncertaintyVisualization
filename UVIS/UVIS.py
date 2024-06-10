@@ -70,6 +70,7 @@ class UVISWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
 
         self.red_slice_node = slicer.mrmlScene.GetNodeByID('vtkMRMLSliceNodeRed')
         self.yellow_slice_node = slicer.mrmlScene.GetNodeByID('vtkMRMLSliceNodeYellow')
+        self.current_level = 0
 
     def onReload(self):
 
@@ -153,7 +154,7 @@ class UVISWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
             self.uncertainty_array = slicer.util.arrayFromVolume(uncertainty_node)
             self.logic.uncertaintyNode = uncertainty_node
 
-            self.logic.uncertainty_volume_selected_initialization(self.input_volume_dir, self.score_display)
+            self.logic.uncertainty_volume_selected_initialization(self.input_volume_dir, self.score_display, self.negative_score_display)
 
             self.slider_setup_based_on_uncertainty_value(self.color_overlay_slider_control,
                                                          self.uncertainty_array.min(),
@@ -269,8 +270,17 @@ class UVISWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         self.forground_uncertaintycollapsible.setVisible(False)
         self.blurinessColapsibbleButton.setVisible(False)
 
-        self.score_label.setVisible(True)
-        self.score_display.setVisible(True)
+        if self.current_level == 2 or self.current_level == 3:
+            self.score_label.setVisible(False)
+            self.score_display.setVisible(False)
+            self.negative_score_label.setVisible(False)
+            self.negative_score_display.setVisible(False)
+        else:
+            self.score_label.setVisible(True)
+            self.score_display.setVisible(True)
+            self.negative_score_label.setVisible(True)
+            self.negative_score_display.setVisible(True)
+
 
         self.logic.game.game_started()
 
@@ -281,6 +291,7 @@ class UVISWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         self.game_leve_label.setVisible(False)
         self.game_level.setVisible(False)
         self.play_button.setVisible(False)
+        self.reveal_results_button.setVisible(False)
         self.play_wo_vis_button.setVisible(False)
         self.reset_button.setVisible(False)
         self.save_button.setVisible(False)
@@ -299,7 +310,10 @@ class UVISWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         self.forground_uncertaintycollapsible.setVisible(True)
         self.blurinessColapsibbleButton.setVisible(True)
         self.score_label.setVisible(False)
+        self.negative_score_label.setVisible(False)
         self.score_display.setVisible(False)
+        self.negative_score_display.setVisible(False)
+
 
 
     def play_game(self):
@@ -308,10 +322,30 @@ class UVISWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         self.surgeonCentricCollapsible.setVisible(False)
         self.forground_uncertaintycollapsible.setVisible(False)
         self.blurinessColapsibbleButton.setVisible(False)
-        self.score_label.setVisible(True)
-        self.score_display.setVisible(True)
+
+        if self.current_level ==2 or self.current_level ==3:
+            self.score_label.setVisible(False)
+            self.negative_score_label.setVisible(False)
+            self.score_display.setVisible(False)
+            self.negative_score_display.setVisible(False)
+        else:
+            self.score_label.setVisible(True)
+            self.negative_score_label.setVisible(True)
+            self.score_display.setVisible(True)
+            self.negative_score_display.setVisible(True)
+
 
         self.logic.play_game()
+
+    def reveal_results(self):
+        self.score_label.setVisible(True)
+        self.score_display.setVisible(True)
+        self.negative_score_label.setVisible(True)
+        self.negative_score_display.setVisible(True)
+        self.logic.game.reveal_results()
+        self.logic.crosshairNode.RemoveAllObservers()
+        self.logic.toggle_visualization(False)
+
 
     def change_model_opacity(self, Button, opacity):
 
@@ -381,12 +415,17 @@ class UVISWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         if index == 2 or index == 3:
             self.play_wo_vis_button.setVisible(True)
             self.modify_vis_button.setVisible(False)
+            self.reveal_results_button.setVisible(True)
         else:
             self.play_wo_vis_button.setVisible(False)
             self.modify_vis_button.setVisible(True)
-
-
+            self.reveal_results_button.setVisible(False)
+        self.current_level = index
         self.logic.game_level_changed(index)
+        self.score_label.setVisible(False)
+        self.score_display.setVisible(False)
+        self.negative_score_label.setVisible(False)
+        self.negative_score_display.setVisible(False)
 
     def on_line_thickness_changed(self, Button, value):
 
@@ -395,11 +434,11 @@ class UVISWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
     def setup(self):
 
         ScriptedLoadableModuleWidget.setup(self)
-      #  slicer.util.setModuleHelpSectionVisible(False)
-      #  slicer.util.setDataProbeVisible(False)
-     #   slicer.util.setStatusBarVisible(False)
-     #   slicer.util.setToolbarsVisible(False)
-     #   slicer.util.setPythonConsoleVisible(True)
+        slicer.util.setModuleHelpSectionVisible(True)
+        slicer.util.setDataProbeVisible(True)
+        slicer.util.setStatusBarVisible(True)
+        slicer.util.setToolbarsVisible(True)
+        slicer.util.setPythonConsoleVisible(True)
 
         self.uiWidget = slicer.util.loadUI(self.resourcePath('UI/UVIS.ui'))
         self.layout.addWidget(self.uiWidget)
@@ -483,10 +522,24 @@ class UVISWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         self.score_display.setStyleSheet(
             "background-color: #FFFF99; color: black; font-size: 20px; text-align: center;")
 
+        self.negative_score_display = qt.QLineEdit()
+        self.negative_score_display.setReadOnly(
+            True)  # Set to read-only if you only want to display the score and not allow user edits
+        self.negative_score_display.setFixedSize(200, 50)  # Increase the size of the score display
+        self.negative_score_display.setAlignment(qt.Qt.AlignCenter)
+        # Add CSS styling for yellow color and larger font
+        self.negative_score_display.setStyleSheet(
+            "background-color: #FFFF99; color: black; font-size: 20px; text-align: center;")
+
+
         # Add a label for the score display
         self.score_label = qt.QLabel("Score:")
         self.score_label.setFixedSize(70, 50)
-        self.score_label.setStyleSheet("font-size: 20px;")  # Increase the font size
+        self.score_label.setStyleSheet("font-size: 20px;")
+        # Increase the font size
+        self.negative_score_label = qt.QLabel("")
+        self.negative_score_label.setFixedSize(70, 50)
+        self.negative_score_label.setStyleSheet("font-size: 20px;")  # Increase the font size
 
         # Create a horizontal layout for centering
         score_layout = qt.QHBoxLayout()
@@ -495,11 +548,21 @@ class UVISWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         score_layout.addWidget(self.score_display)
         score_layout.addStretch(1)
 
+        negative_score_layout = qt.QHBoxLayout()
+        negative_score_layout.addStretch(1)
+        negative_score_layout.addWidget(self.negative_score_label)
+        negative_score_layout.addWidget(self.negative_score_display)
+        negative_score_layout.addStretch(1)
+
+
         # Add the horizontal layout to the main layout before "Game Evaluation"
         self.layout.addLayout(score_layout)
+        self.layout.addLayout(negative_score_layout)
 
         self.score_label.setVisible(False)
         self.score_display.setVisible(False)
+        self.negative_score_label.setVisible(False)
+        self.negative_score_display.setVisible(False)
 
         self.tumorBasedCollapsible = ctk.ctkCollapsibleButton()
         self.tumorBasedCollapsible.text = "Tumor Based"
@@ -788,6 +851,11 @@ class UVISWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         self.play_button.clicked.connect(self.play_game)
         self.play_button.setVisible(False)
 
+        self.reveal_results_button = qt.QPushButton("Reveal the results")
+        self.reveal_results_button.setFixedSize(150, 30)
+        self.reveal_results_button.clicked.connect(self.reveal_results)
+        self.reveal_results_button.setVisible(False)
+
         self.play_wo_vis_button = qt.QPushButton("Trace Tumor")
         self.play_wo_vis_button.setFixedSize(80, 30)
         self.play_wo_vis_button.clicked.connect(self.logic.play_game_wo_vis)
@@ -838,6 +906,7 @@ class UVISWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
     #    gameLayout.addWidget(self.play_game_with_ground_truth, 3, 0)
         gameLayout.addWidget(self.play_wo_vis_button, 4, 0)
         gameLayout.addWidget(self.play_button, 4, 1)
+        gameLayout.addWidget(self.reveal_results_button, 4, 8)
         gameLayout.addWidget(self.reset_button, 5, 0)
         #   gameLayout.addWidget(self.colorOverlay_checkBox, 2, 0)
         #    gameLayout.addWidget(self.textMode_checkBox, 3, 0)
@@ -923,14 +992,15 @@ class UVISLogic(ScriptedLoadableModuleLogic):
     #  self.id = self.crosshairNode.AddObserver(slicer.vtkMRMLCrosshairNode.CursorPositionModifiedEvent, self.onMouseMoved)
     #  self.pointListNode = slicer.util.getNode("vtkMRMLMarkupsFiducialNode1")
 
-    def uncertainty_volume_selected_initialization(self, input_volume_dir, score_display):
+    def uncertainty_volume_selected_initialization(self, input_volume_dir, score_display,negative_score_display ):
 
         self.uncertaintyForeground = UncertaintyForegroundVisualization(self.uncertaintyNode, self.input_volume_node)
         self.uncertaintyArray = slicer.util.arrayFromVolume(self.uncertaintyNode)
         self.text_mode_visualization = TexModeVisualization(self.uncertaintyArray, self.uncertaintyNode)
         self.colorLUT = ColorLUT(self.uncertaintyForeground.uncertaintyVISVolumeNode)
-        self.game = EvaluationGame(self.uncertaintyArray, self.data_dir, score_display)
         self.input_volume_array = slicer.util.arrayFromVolume(self.input_volume_node)
+        self.game = EvaluationGame(self.uncertaintyArray, self.data_dir, score_display,negative_score_display,
+                                   self.input_volume_array)
 
         self.backgroundModifiedVisualization = BackgroundModifiedVisualization(self.uncertaintyArray,
                                                                               self.input_volume_array, self.input_volume_node)
@@ -1114,9 +1184,10 @@ class UVISLogic(ScriptedLoadableModuleLogic):
 
         if self.is_filter_mode_selected:
             input_volume_node = self.backgroundModifiedVisualization.get_current_filtered_node()
-            self.game.play(self.uncertaintyArray, input_volume_node)
+            input_volume = self.backgroundModifiedVisualization.get_current_filtered_volume()
+            self.game.play(self.uncertaintyArray, input_volume_node, self.current_visualization)
         else:
-            self.game.play(self.uncertaintyArray, self.input_volume_node)
+            self.game.play(self.uncertaintyArray, self.input_volume_node, self.current_visualization)
 
     def play_game_wo_vis(self):
         self.game.toggle_tracing_boundary_mode(True)
@@ -1127,7 +1198,7 @@ class UVISLogic(ScriptedLoadableModuleLogic):
         #    input_volume_node = self.backgroundModifiedVisualization.get_current_filtered_node()
         #   self.game.play(self.uncertaintyArray, input_volume_node)
        # else:
-        self.game.play(self.uncertaintyArray, self.input_volume_node)
+        self.game.play(self.uncertaintyArray, self.input_volume_node, self.current_visualization)
 
     def reset(self):
         self.game.reset()
@@ -1139,7 +1210,7 @@ class UVISLogic(ScriptedLoadableModuleLogic):
             show_on_slicer = False
         else:
             show_on_slicer = True
-
+        self.save_data()
         self.game.play_new_level(level)
 
        # self.current_data_dir = self.data_dir + case_name

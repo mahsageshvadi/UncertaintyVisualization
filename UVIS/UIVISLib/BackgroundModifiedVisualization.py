@@ -317,6 +317,10 @@ class BackgroundModifiedVisualization():
 
         return self.BackgroundModifedVisualization
 
+    def get_current_filtered_volume(self):
+
+        return self.current_filtered_volume
+
     def game_level_changes_background_modified(self, uncertainty_array, input_image_node, level):
 
         self.current_level = level

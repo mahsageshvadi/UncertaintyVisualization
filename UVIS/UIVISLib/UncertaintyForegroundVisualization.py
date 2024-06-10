@@ -29,9 +29,9 @@ class UncertaintyForegroundVisualization():
         self.current_visibility = False
         self.initialize_nodes(uncertaintyNode)
         self.update_foreground_with_uncertainty_array(self.uncertaintyArray)
+        self.red_composite_node = slicer.mrmlScene.GetNodeByID('vtkMRMLSliceCompositeNodeRed')
         self.initiate_uncertainty_vis_volume_node()
         self.displayNode = self.uncertaintyVISVolumeNode.GetDisplayNode()
-        self.red_composite_node = slicer.mrmlScene.GetNodeByID('vtkMRMLSliceCompositeNodeRed')
         self.is_color_overlay_active = False
 
     def align_volume_based_on_input_node(self, volume_node, input_image_node):
@@ -61,6 +61,8 @@ class UncertaintyForegroundVisualization():
 
         #  self.uncertaintyVISVolumeNode.SetDisplayVisibility(True)
         slicer.util.setSliceViewerLayers(foreground=self.uncertaintyVISVolumeNode, foregroundOpacity=0.0)
+       # self.red_composite_node.SetForegroundVolumeID(self.uncertaintyVISVolumeNode.GetID())
+       # self.red_composite_node.SetForegroundOpacity(0.0)
 
     def initialize_nodes(self, uncertaintyNode):
 
@@ -81,9 +83,13 @@ class UncertaintyForegroundVisualization():
         self.align_volume_based_on_input_node(self.uncertaintyVISVolumeNode, self.input_image_node)
 
         if not is_checked:
-            slicer.util.setSliceViewerLayers(foreground=self.uncertaintyVISVolumeNode, foregroundOpacity=0.0)
+              slicer.util.setSliceViewerLayers(foreground=self.uncertaintyVISVolumeNode, foregroundOpacity=0.0)
+            #  self.red_composite_node.SetForegroundVolumeID(self.uncertaintyVISVolumeNode.GetID())
+            #  self.red_composite_node.SetForegroundOpacity(0.0)
         else:
-            slicer.util.setSliceViewerLayers(foreground=self.uncertaintyVISVolumeNode, foregroundOpacity=0.5)
+              slicer.util.setSliceViewerLayers(foreground=self.uncertaintyVISVolumeNode, foregroundOpacity=0.5)
+          #    self.red_composite_node.SetForegroundVolumeID(self.uncertaintyVISVolumeNode.GetID())
+          #    self.red_composite_node.SetForegroundOpacity(0.5)
 
     def update_foreground_with_uncertainty_array(self, update_array):
 
@@ -111,11 +117,13 @@ class UncertaintyForegroundVisualization():
                     uncertaintyArray_croped = self.surgeon_centric_array_calculation(point_Ijk)
                     self.update_foreground_with_uncertainty_array(uncertaintyArray_croped)
                     slicer.util.setSliceViewerLayers(foreground=self.uncertaintyVISVolumeNode, foregroundOpacity=0.5)
+                  #  self.red_composite_node.SetForegroundVolumeID(self.uncertaintyVISVolumeNode.GetID())
+                  #  self.red_composite_node.SetForegroundOpacity(0.5)
 
                     #self.uncertaintyVISVolumeNode.SetOrigin(
                       #  [(ras[0] - (self.color_overlay_surgeon_centric_mask_margin / 2)), (ras[1] - (self.color_overlay_surgeon_centric_mask_margin / 2)),
                        #  ras[2]])
-                    self.uncertaintyVISVolumeNode.SetOrigin(ras[0], ras[1], ras[2])
+                    self.uncertaintyVISVolumeNode.SetOrigin(ras[0] - self.color_overlay_surgeon_centric_mask_margin , ras[1] + self.color_overlay_surgeon_centric_mask_margin, ras[2])
 
                 except:
                     pass
@@ -126,9 +134,13 @@ class UncertaintyForegroundVisualization():
             self.align_volume_based_on_input_node(self.uncertaintyVISVolumeNode, self.input_image_node)
 
             if self.is_color_overlay_active is True:
-                slicer.util.setSliceViewerLayers(foreground=self.uncertaintyVISVolumeNode, foregroundOpacity=0.5)
+                  slicer.util.setSliceViewerLayers(foreground=self.uncertaintyVISVolumeNode, foregroundOpacity=0.5)
+               #   self.red_composite_node.SetForegroundVolumeID(self.uncertaintyVISVolumeNode.GetID())
+              #    self.red_composite_node.SetForegroundOpacity(0.5)
             else:
                 slicer.util.setSliceViewerLayers(foreground=self.uncertaintyVISVolumeNode, foregroundOpacity=0.0)
+              #  self.red_composite_node.SetForegroundVolumeID(self.uncertaintyVISVolumeNode.GetID())
+              #  self.red_composite_node.SetForegroundOpacity(0.0)
 
 
     def enable_disable_flicker_mode(self, is_checked):
@@ -138,8 +150,12 @@ class UncertaintyForegroundVisualization():
             self.stop_flicker()
             if self.is_color_overlay_active is True:
                 slicer.util.setSliceViewerLayers(foreground=self.uncertaintyVISVolumeNode, foregroundOpacity=0.5)
+            #    self.red_composite_node.SetForegroundVolumeID(self.uncertaintyVISVolumeNode.GetID())
+            #    self.red_composite_node.SetForegroundOpacity(0.5)
             else:
                 slicer.util.setSliceViewerLayers(foreground=self.uncertaintyVISVolumeNode, foregroundOpacity=0.0)
+              #  self.red_composite_node.SetForegroundVolumeID(self.uncertaintyVISVolumeNode.GetID())
+              #  self.red_composite_node.SetForegroundOpacity(0.0)
 
 
     def perform_flicker_if_uncertainty_more_than_threshold(self, point_Ijk):
@@ -171,9 +187,13 @@ class UncertaintyForegroundVisualization():
 
         if not self.current_visibility:
             slicer.util.setSliceViewerLayers(foreground=self.uncertaintyVISVolumeNode, foregroundOpacity=0.5)
+           # self.red_composite_node.SetForegroundVolumeID(self.uncertaintyVISVolumeNode.GetID())
+          #  self.red_composite_node.SetForegroundOpacity(0.5)
             self.current_visibility = True
         else:
             slicer.util.setSliceViewerLayers(foreground=self.uncertaintyVISVolumeNode, foregroundOpacity=0.0)
+           # self.red_composite_node.SetForegroundVolumeID(self.uncertaintyVISVolumeNode.GetID())
+         #   self.red_composite_node.SetForegroundOpacity(0.0)
             self.current_visibility = False
 
     def change_flicker_threshold(self, threshold):
