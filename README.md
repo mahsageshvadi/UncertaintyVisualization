@@ -52,7 +52,7 @@ Clone the repository and install dependencies:
 ```bash
 git clone https://github.com/mahsageshvadi/UncertaintyVisualization.git
 cd UncertaintyVisualization
-
+```
 
 ### How to get started
 
@@ -67,3 +67,7 @@ cd UncertaintyVisualization
    - Ground truth MRI image.
    - Modified MRI image.
 
+
+
+###Contact
+For more information or to contribute, please contact Mahsa Geshvadi at mgeshvadi@gmail.com
