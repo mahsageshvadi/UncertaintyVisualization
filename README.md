@@ -6,6 +6,11 @@ Interactive Platform for Visualizing Uncertainty in MRI Images in 3D slicer
 
 With Uncertainty Visualization Tool  you can visualize uncertainty in medical images, helping during tumor resection surgeries. The tool offers four main features: Volume Filtering, Color Overlay, Surgeon-Centric, and Tumor-Based visualizations. Additionally, evaluate each technique through an interactive game designed to identify the most effective visualization.
 
+
+### Video Demo
+Watch the demo video to see how the Uncertainty Visualization Tool works:
+
+[Download and watch the video](GameDemo.mov)
 ## Features
 
 - **Volume Filtering:** Filter volume data to highlight areas of interest.

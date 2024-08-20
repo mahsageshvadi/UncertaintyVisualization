@@ -47,6 +47,8 @@ class TumorBasedVis():
         self.larger_model_display_node_dict = {}
         self.smaller_mode_display_node_dict = {}
         self.tumor_3D_model_display_node_dict = {}
+        self.segmentation_node_dict = {}
+        self.current_segmentation_node = None
 
         # self.temporary_init()
         #  self.calculate_uncertatinty_volumes()
@@ -57,6 +59,9 @@ class TumorBasedVis():
         self.input_node = input_node
         self.generate_tumor_3_d_model(input_volume_dir, 0)
         self.generate_offsets()
+        self.segmentation_node_list = []
+        self.bigger_color = None
+        self.smaller_color = None
 
     def align_volumes( self, volume_node):
             volume_node.SetIJKToRASDirections(self.directionMatrix[0][0], self.directionMatrix[0][1], self.directionMatrix[0][2],
@@ -77,6 +82,7 @@ class TumorBasedVis():
         self.align_volumes(self.labelVolume)
         self.segmentation_node = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLSegmentationNode")
         self.segmentation_node.SetName("NewSegmentation")
+
 
         slicer.modules.segmentations.logic().ImportLabelmapToSegmentationNode(self.labelVolume, self.segmentation_node)
         self.segmentation_node.CreateClosedSurfaceRepresentation()
@@ -107,6 +113,21 @@ class TumorBasedVis():
         self.larger_model_display_node_dict[level] = self.larger_model_display_node
         self.smaller_mode_display_node_dict[level] = self.smaller_mode_display_node
         self.tumor_3D_model_display_node_dict[level] = self.tumor_3D_model_display_node
+        self.segmentation_node_dict[level] = self.segmentation_node
+        self.current_segmentation_node = self.segmentation_node
+
+        displayNode = self.segmentation_node.GetDisplayNode()
+        displayNode.SetSliceIntersectionThickness(3)
+
+        displayNode.SetVisibility2DFill(False)
+        displayNode.SetVisibility2D(True)
+
+        segmentID = self.segmentation_node.GetSegmentation().GetSegmentIDs()[0]
+        segmentation = self.segmentation_node.GetSegmentation()
+        segmentation.GetSegment(segmentID).SetColor(1, 0.4, 0.4)
+
+    def toggle_segmentation_node_visibility(self, on):
+        self.current_segmentation_node.SetDisplayVisibility(on)
 
     def clone_3D_model_node(self, name, originalModelNode):
 
@@ -361,19 +382,21 @@ class TumorBasedVis():
 
     def set_color(self, Button, color):
 
-        color = tuple(c / 255 for c in color)
+        color_r = tuple(c / 255 for c in color)
 
         if Button == Button.TumorBigger:
 
-            self.larger_model_display_node.SetColor(color)
+            self.larger_model_display_node.SetColor(color_r)
+            self.bigger_color = color
 
         elif Button == Button.Tumor:
 
-            self.tumor_3D_model_display_node.SetColor(color)
+            self.tumor_3D_model_display_node.SetColor(color_r)
 
         elif Button == Button.TumorSmaller:
 
-            self.smaller_mode_display_node.SetColor(color)
+            self.smaller_mode_display_node.SetColor(color_r)
+            self.smaller_color = color
 
     def set_line_width(self, Button, width):
 
@@ -400,4 +423,9 @@ class TumorBasedVis():
         self.larger_model_display_node = self.larger_model_display_node_dict[level]
         self.smaller_mode_display_node = self.smaller_mode_display_node_dict[level]
         self.tumor_3D_model_display_node = self.tumor_3D_model_display_node_dict[level]
+        self.current_segmentation_node = self.segmentation_node_dict[level]
         self.enable_tumorVIS(True)
+        if self.bigger_color is not None:
+            self.set_color(Button.TumorBigger, self.bigger_color)
+        if self.smaller_color is not None:
+            self.set_color(Button.TumorSmaller, self.smaller_color)

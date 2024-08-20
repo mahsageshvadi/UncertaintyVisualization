@@ -7,6 +7,8 @@ import os
 import qt
 import json
 import nibabel as nib
+import copy
+
 
 from enum import Enum
 
@@ -18,7 +20,7 @@ class GameType(Enum):
 
 class EvaluationGame():
 
-    def __init__(self, uncertainty_array, data_dir, score_display, negative_score_display,
+    def __init__(self, uncertainty_array, data_dir, score_display, negative_score_display, score_display_wo_vis,negative_score_display_wo_vis,
                  first_mri_image_volume_for_reset):
 
         self.app = slicer.app
@@ -55,7 +57,9 @@ class EvaluationGame():
                                 [0, 0, -1]]
 
         self.totalScore = 0
+        self.totalScore_wo_vis = 0
         self.total_incorrect_score = 0
+        self.total_incorrect_score_wo_vis = 0
         self.player_info = {}
         self.player_picked_visualization_while_playing = {}
         self.player_username = None
@@ -63,6 +67,9 @@ class EvaluationGame():
         self.uncertainty_array = uncertainty_array
         self.score_display = score_display
         self.negative_score_display = negative_score_display
+        self.score_display_wo_vis = score_display_wo_vis
+        self.negative_score_display_wo_vis = negative_score_display_wo_vis
+
         self.levels = {
 
             '0': 'Case020',
@@ -99,6 +106,7 @@ class EvaluationGame():
         self.gt_node_lists = []
         self.gt_label_node_lists = []
         self.gt_label_volume_list = []
+        self.gt_label_volume_temp_list = []
         self.gt_volume_lists = []
         self.load_levels()
 
@@ -161,9 +169,14 @@ class EvaluationGame():
         self.pred_label_volume_node = self.pred_label_node_list[0]
         self.pred_label_volume = self.pred_label_volumes_list[0]
         self.pred_label_volume_temp = self.pred_label_volume.copy()
+       # self.gt_label_volume_temp = copy.deepcopy(self.gt_label_volume)
 
         self.volume_to_save = np.ones(
-            (self.pred_label_volume.shape[2], self.pred_label_volume.shape[1], self.pred_label_volume.shape[0]))
+            (self.pred_label_volume.shape[0], self.pred_label_volume.shape[1], self.pred_label_volume.shape[2]))
+
+        self.volume_to_save_wo_vis = np.ones(
+            (self.pred_label_volume.shape[0], self.pred_label_volume.shape[1], self.pred_label_volume.shape[2]))
+
 
         self.previous_vis = {
             "Volume Filtering": False,
@@ -226,6 +239,13 @@ class EvaluationGame():
         self.list_of_ceters = []
         self.list_of_axesLength = []
         self.list_of_variation_volumes = []
+        self.play_button = None
+        self.reveal_results_button = None
+        self.trace_tumor_button = None
+        self.modify_vis_button = None
+
+        self.minded_points = np.zeros(
+            shape=(self.mri_image_volume_for_reset.shape[0], self.mri_image_volume_for_reset.shape[1], self.mri_image_volume_for_reset.shape[2]))
 
     def leader_board_init(self):
 
@@ -285,15 +305,21 @@ class EvaluationGame():
 
             self.negative_score_leaderboard_list.append((markups_node_negative_score))
 
+    def compute_value(self, entry):
+        first_score, second_score = entry[1], entry[2]
+        return first_score - 2 * second_score
+
     def initialize_leaderboard_for_this_level(self, level):
         self.leader_board_data = []
-        self.leader_board_negative_data = []
+      #  self.leader_board_negative_data = []
         current_level_text = 'level_' + str(level)
         for name, data in self.player_info.items():
-            self.leader_board_data.append((name, data[current_level_text]['score']))
-            self.leader_board_negative_data.append((name, data[current_level_text]['negative_score']))
-        self.leader_board_data = sorted(self.leader_board_data, key=lambda x: x[1], reverse=True)
-        self.leader_board_negative_data = sorted(self.leader_board_negative_data, key=lambda x: x[1], reverse=True)
+            self.leader_board_data.append((name, data[current_level_text]['score'], data[current_level_text]['negative_score']))
+           # self.leader_board_negative_data.append((name, data[current_level_text]['negative_score']))
+      #  self.leader_board_data = sorted(self.leader_board_data, key=lambda x: x[1], reverse=True)
+        self.leader_board_data = sorted(self.leader_board_data, key=self.compute_value, reverse=True)
+
+    #  self.leader_board_negative_data = sorted(self.leader_board_negative_data, key=lambda x: x[1], reverse=True)
 
     def show_gt_in_green_view(self, level=0):
         self.green_composite_node.SetBackgroundVolumeID(None)
@@ -306,8 +332,10 @@ class EvaluationGame():
     def reveal_results(self):
         self.show_leader_board_data()
         if self.crosshair_node_id is not None:
-            self.crosshairNode.RemoveObserver(self.crosshair_node_id)
+            self.crosshairNode.RemoveAllObservers()
             self.crosshair_node_id = None
+        self.red_composite_node.SetForegroundVolumeID(self.gt_label_volume_node.GetID())
+        self.red_composite_node.SetForegroundOpacity(0.3)
 
     def show_leader_board_data(self):
         for i in range(5):
@@ -315,40 +343,48 @@ class EvaluationGame():
                 if self.leader_board_data[i] is not None:
                     self.username_leaderboard_list[i].SetNthControlPointLabel(0, self.leader_board_data[i][0])
                     self.score_leaderboard_list[i].SetNthControlPointLabel(0, str(self.leader_board_data[i][1]))
-                    if self.leader_board_negative_data[i][1] != 0:
-                        self.negative_score_leaderboard_list[i].SetNthControlPointLabel(0, "- " +str(self.leader_board_negative_data[i][1]))
+                    if self.leader_board_data[i][2] != 0:
+                        self.negative_score_leaderboard_list[i].SetNthControlPointLabel(0, "- " +str(self.leader_board_data[i][2]))
                     else:
-                        self.negative_score_leaderboard_list[i].SetNthControlPointLabel(0, str(self.leader_board_negative_data[i][1]))
-
+                        self.negative_score_leaderboard_list[i].SetNthControlPointLabel(0, str(self.leader_board_data[i][2]))
 
     def update_leader_board(self):
-        self.leader_board_data = sorted(self.leader_board_data, key=lambda x: x[1], reverse=True)
-        order_mapping = {name: index for index, (name, _) in enumerate(self.leader_board_data)}
 
-        self.leader_board_negative_data = sorted(self.leader_board_negative_data,
-                                                   key=lambda x: order_mapping.get(x[0], float('inf')))
+       # self.leader_board_data = sorted(self.leader_board_data, key=lambda x: x[1], reverse=True)
+      #  order_mapping = {name: index for index, (name, _) in enumerate(self.leader_board_data)}
+
+     #   self.leader_board_negative_data = sorted(self.leader_board_negative_data,
+                 #                                  key=lambda x: order_mapping.get(x[0], float('inf')))
 
      #   self.leader_board_negative_data = sorted(self.leader_board_negative_data, key=lambda x: x[1], reverse=True)
       #  self.show_leader_board_data()
-        self.get_current_ranking()
+
+       self.leader_board_data = sorted(self.leader_board_data, key=self.compute_value, reverse=True)
+       # self.leader_board_negative_data = sorted(self.leader_board_negative_data, key=lambda x: sorted_users.index(x[0]))
+
+       self.get_current_ranking()
 
     def get_current_ranking(self):
-        for i, (name, score) in enumerate(self.leader_board_data):
+        for i, (name, score1, score2) in enumerate(self.leader_board_data):
             if name == self.player_username:
                 self.current_ranking = i
         self.get_higher_lower_scores()
 
     def get_higher_lower_scores(self):
         if self.current_ranking == 0:
-            self.higher_score = self.leader_board_data[0][1]
+            #self.higher_score = self.leader_board_data[0][1]
+            self.higher_score = self.compute_value(self.leader_board_data[0])
         else:
 
-            self.higher_score = self.leader_board_data[self.current_ranking - 1][1]
+           # self.higher_score = self.leader_board_data[self.current_ranking - 1][1]
+            self.higher_score = self.compute_value(self.leader_board_data[self.current_ranking - 1])
 
         if self.current_ranking == len(self.leader_board_data) - 1:
-            self.lower_score = self.leader_board_data[self.current_ranking][1]
+            #self.lower_score = self.leader_board_data[self.current_ranking][1]
+            self.lower_score = self.compute_value(self.leader_board_data[self.current_ranking])
         else:
-            self.lower_score = self.leader_board_data[self.current_ranking + 1][1]
+           # self.lower_score = self.leader_board_data[self.current_ranking + 1][1]
+            self.lower_score = self.compute_value(self.leader_board_data[self.current_ranking + 1])
 
     def align_volumes(self, volume_node):
         #   volume_node.SetOrigin(self.origin)
@@ -433,6 +469,8 @@ class EvaluationGame():
         self.mri_image_node = self.level_node_lists[0]
         self.gt_label_volume_node = self.gt_label_node_lists[0]
         self.gt_label_volume = self.gt_label_volume_list[0]
+        self.gt_label_volume_temp_list = copy.deepcopy(self.gt_label_volume_list)
+        self.gt_label_volume_temp = self.gt_label_volume_temp_list[0]
         self.gt_volume_node = self.gt_node_lists[0]
         self.gt_volume = self.gt_volume_lists[0]
         self.pred_label_volume_node = self.pred_label_node_list[0]
@@ -462,8 +500,9 @@ class EvaluationGame():
 
         if not self.is_tracing_boundaries:
 
-            self.leader_board_data[self.current_ranking] = (self.player_username, self.totalScore)
-            self.leader_board_negative_data[self.current_ranking] = (self.player_username, self.total_incorrect_score)
+            self.leader_board_data[self.current_ranking] = (self.player_username, self.totalScore, self.total_incorrect_score)
+
+           # self.leader_board_negative_data[self.current_ranking] = (self.player_username, self.total_incorrect_score)
             if self.totalScore < self.lower_score or self.totalScore > self.higher_score:
                 self.update_leader_board()
 
@@ -471,12 +510,16 @@ class EvaluationGame():
            # self.score_leaderboard_list[self.current_ranking].SetNthControlPointLabel(0,
                                                                               #        str(round(self.totalScore)))
 
+
         if self.game_is_played_for_saving:
             nifti_img = nib.Nifti1Image(self.volume_to_save, affine=np.eye(4))
 
             save_file_name = '{}/GameResults/{}_{}.nii'.format(self.project_root, self.player_username,
                                                                self.current_level)
+
             nifti_img.to_filename(save_file_name)
+
+            self.save_data()
 
         if self.is_tracing_boundaries:
             self.remove_game_observers()
@@ -487,7 +530,18 @@ class EvaluationGame():
             else:
                 self.toggle_tracing_boundary_mode(False)
                 self.save_extend_of_resection_w_o_b()
+                self.score_display_wo_vis.setText(str(self.totalScore_wo_vis))
+
+                if self.total_incorrect_score_wo_vis != 0:
+                    self.negative_score_display_wo_vis.setText("- " + str(self.total_incorrect_score_wo_vis))
+                else:
+                    self.negative_score_display_wo_vis.setText(str(self.total_incorrect_score_wo_vis))
+
                 self.reset()
+                self.play_button.setEnabled(True)
+                self.reveal_results_button.setEnabled(True)
+                self.modify_vis_button.setEnabled(True)
+                self.trace_tumor_button.setEnabled(False)
 
     def add_game_observers(self):
         if not self.is_observer_added:
@@ -591,22 +645,36 @@ class EvaluationGame():
         self.generate_ground_truth_level_1()
 """
 
-    def play(self, uncertainty_array, input_node, current_visualization):
+    def play(self, uncertainty_array, input_node, current_visualization, is_filtered=False):
+
+        self.uncertainty_array = uncertainty_array
+        self.mri_image_node = input_node
+        self.mri_image_volume = slicer.util.arrayFromVolume(input_node)
+
+        if self.game_is_played_for_saving is not True:
+            self.volume_to_save = np.ones(
+                (self.mri_image_volume.shape[0], self.mri_image_volume.shape[1], self.mri_image_volume.shape[2]))
+
+            self.volume_to_save_wo_vis = np.ones(
+                (self.mri_image_volume.shape[0], self.mri_image_volume.shape[1], self.mri_image_volume.shape[2]))
 
         self.game_is_played_for_saving = True
         if self.previous_vis != current_visualization:
             self.save_visualization(current_visualization)
             self.previous_vis = current_visualization.copy()
 
-        self.uncertainty_array = uncertainty_array
-        self.mri_image_node = input_node
-        self.mri_image_volume = slicer.util.arrayFromVolume(input_node)
+
+        if self.game_is_played_for_saving is not True:
+            self.minded_points = np.zeros(
+                shape=(self.mri_image_volume.shape[0], self.mri_image_volume.shape[1], self.mri_image_volume.shape[2]))
+
+        if self.current_level == 0 or self.current_level == 1:
+            self.mri_image_volume = self.mri_image_volume * self.volume_to_save
         # self.volume_to_save = np.ones(
         #    (self.mri_image_volume.shape[2], self.mri_image_volume.shape[1], self.mri_image_volume.shape[0]))
         # self.mri_image_volume_temp = self.mri_image_volume.copy()
         #  self.pred_label_volume_temp = self.pred_label_volume.copy()
-        self.minded_points = np.zeros(
-            shape=(self.mri_image_volume.shape[0], self.mri_image_volume.shape[1], self.mri_image_volume.shape[2]))
+
         #  self.generate_user_sees(
         #   self.reset()
         self.cursorNode.SetDisplayVisibility(True)
@@ -624,8 +692,8 @@ class EvaluationGame():
     #   self.setup_game_scene()
 
     def game_stopped(self):
-        with open(self.project_root + '/GameResults/player_scores.json', 'w') as f:
-            json.dump(self.player_info, f)
+    #    with open(self.project_root + '/GameResults/player_scores.json', 'w') as f:
+        #    json.dump(self.player_info, f)
 
         slicer.mrmlScene.RemoveNode(self.ground_truth_node)
         slicer.mrmlScene.RemoveNode(self.user_sees_node)
@@ -765,7 +833,9 @@ class EvaluationGame():
                         min(self.mri_image_volume.shape[2], point_Ijk[0] + self.cursor_radius_for_game))
 
         score = 0
+        wo_vis_score = 0
         number_of_incorrect_resect = 0
+        number_of_incorrect_reset_wo_vis = 0
         self.cursorNode.SetNthControlPointPosition(0, ras[0], ras[1], ras[2])
         if self.is_gaining_score_started:
             for z in range(1):
@@ -774,14 +844,20 @@ class EvaluationGame():
                         if (x - point_Ijk[0]) ** 2 + (y - point_Ijk[1]) ** 2 + (
                                 z - point_Ijk[2]) ** 2 <= self.cursor_radius_for_game ** 2:
                             self.mri_image_volume[z, y, x] = self.mri_image_volume.min()
-                            self.pred_label_volume[z, y, x] = 0
-                            self.volume_to_save[x, y, z] = 0
+                          #  self.pred_label_volume[z, y, x] = 0
+                            self.gt_label_volume[z,y,x] = 0
+                            if not self.is_tracing_boundaries:
+
+                                self.volume_to_save[z, y, x] = 0
+                            else:
+                                self.volume_to_save_wo_vis[z, y, x] = 0
+
                             # uncertainty_volume[z,y,x] = 0.0
 
                             if not self.minded_points[z, y, x]:
                                 self.minded_points[z, y, x] = 1
 
-                                temp_score = self.calculate_score_for(self.gt_label_volume[z, y, x],
+                                temp_score = self.calculate_score_for(self.gt_label_volume_temp[z, y, x],
                                                                       self.pred_label_volume_temp[z, y, x])
 
                                 if not self.is_tracing_boundaries:
@@ -789,8 +865,13 @@ class EvaluationGame():
                                     score += temp_score
                                     if temp_score == 0:
                                         number_of_incorrect_resect += 1
+                                else:
+                                    wo_vis_score+= temp_score
+                                    if temp_score == 0:
+                                        number_of_incorrect_reset_wo_vis += 1
 
-            if self.total_incorrect_score > 1000:
+
+            if self.total_incorrect_score > 100000:
                 #   slicer.util.warningDisplay("You hit the healthy brain", windowTitle="Game Over")
                 #    self.totalScore = -1
                 self.app.restoreOverrideCursor()
@@ -802,7 +883,9 @@ class EvaluationGame():
             #  self.reset()
             else:
                 self.totalScore += score
+                self.totalScore_wo_vis += wo_vis_score
                 self.total_incorrect_score += number_of_incorrect_resect
+                self.total_incorrect_score_wo_vis += number_of_incorrect_reset_wo_vis
             # print(self.total_incorrect_score)
 
            # if not self.is_tracing_boundaries:
@@ -817,6 +900,7 @@ class EvaluationGame():
 
             slicer.util.updateVolumeFromArray(self.mri_image_node, self.mri_image_volume)
             slicer.util.updateVolumeFromArray(self.pred_label_volume_node, self.pred_label_volume)
+            slicer.util.updateVolumeFromArray(self.gt_label_volume_node, self.gt_label_volume)
 
             self.score_display.setText(str(self.totalScore))
             if self.total_incorrect_score != 0:
@@ -838,11 +922,11 @@ class EvaluationGame():
 
         elif gtScore == 1 and predScore == 1:
 
-            return 10
+            return 1
 
         elif gtScore == 1 and predScore == 0:
 
-            return 10
+            return 1
 
 
             # NSCursor.hide()
@@ -889,23 +973,35 @@ class EvaluationGame():
     def reset(self):
 
         self.app.restoreOverrideCursor()
-        self.cursorNode.SetDisplayVisibility(False)
         if self.crosshair_node_id is not None:
             self.crosshairNode.RemoveObserver(self.crosshair_node_id)
             self.crosshair_node_id = None
 
-        self.volume_to_save = np.ones(
-            (self.mri_image_volume.shape[2], self.mri_image_volume.shape[1], self.mri_image_volume.shape[0]))
+        if self.mri_image_volume is not None:
+            self.volume_to_save = np.ones(
+                (self.mri_image_volume.shape[0], self.mri_image_volume.shape[1], self.mri_image_volume.shape[2]))
 
-        slicer.util.updateVolumeFromArray(self.mri_image_node, self.mri_image_volume_for_reset)
-        slicer.util.updateVolumeFromArray(self.pred_label_volume_node, self.pred_label_volume_temp)
+            self.volume_to_save_wo_vis = np.ones(
+                (self.mri_image_volume.shape[0], self.mri_image_volume.shape[1], self.mri_image_volume.shape[2]))
+
+            slicer.util.updateVolumeFromArray(self.mri_image_node, self.mri_image_volume_for_reset)
+            slicer.util.updateVolumeFromArray(self.pred_label_volume_node, self.pred_label_volume_temp)
+            slicer.util.updateVolumeFromArray(self.gt_label_volume_node, self.gt_label_volume_temp.copy())
+            self.minded_points = np.zeros(
+                shape=(self.mri_image_volume.shape[0], self.mri_image_volume.shape[1], self.mri_image_volume.shape[2]))
+
         # self.mri_image_volume = self.mri_image_volume_temp.copy()
         #  self.pred_label_volume = self.pred_label_volume_temp.copy()
+        self.gt_label_volume= copy.deepcopy(self.gt_label_volume_temp)
         self.totalScore = 0
         self.total_incorrect_score = 0
+        self.totalScore_wo_vis = 0
+        self.total_incorrect_score_wo_vis = 0
         self.totalScoreTextNode.SetNthControlPointLabel(0, str(self.totalScore))
         self.score_display.setText(str(self.totalScore))
         self.negative_score_display.setText(str(self.total_incorrect_score))
+       # self.score_display_wo_vis.setText(str(self.totalScore_wo_vis))
+       # self.negative_score_display_wo_vis.setText(str(self.total_incorrect_score_wo_vis))
         self.is_game_over = False
 
     def show_color_overlay(self, isOn):
@@ -945,13 +1041,18 @@ class EvaluationGame():
     def save_extend_of_resection_w_o_b(self):
 
         current_level_for_dict = "level_" + str(self.current_level)
+
+        self.player_info[self.player_username][current_level_for_dict]["score_wo_visualization"] = self.totalScore_wo_vis
+        self.player_info[self.player_username][current_level_for_dict]["negative_score_wo_visualization"] = self.total_incorrect_score_wo_vis
+
         self.player_info[self.player_username][current_level_for_dict][
             "extend_of_resection_without_visualization"] = np.count_nonzero(
-            self.volume_to_save == 0)
+            self.volume_to_save_wo_vis == 0)
+
         with open(self.project_root + '/GameResults/player_scores.json', 'w') as f:
             json.dump(self.player_info, f)
 
-        nifti_img = nib.Nifti1Image(self.volume_to_save, affine=np.eye(4))
+        nifti_img = nib.Nifti1Image(self.volume_to_save_wo_vis, affine=np.eye(4))
         save_file_name = '{}/GameResults/{}_{}_wo_boundary.nii'.format(self.project_root, self.player_username,
                                                                        self.current_level)
 
@@ -966,10 +1067,14 @@ class EvaluationGame():
         with open(self.project_root + '/GameResults/Visualization_picked_by_users.json', 'w') as f:
             json.dump(self.player_picked_visualization_while_playing, f)
 
-    def play_new_level(self, level):
+    def play_new_level(self, level, play_button, reveal_button, trace_tumor_button, modify_vis_button):
         self.game_is_done()
         self.reset()
 
+        self.play_button = play_button
+        self.reveal_results_button = reveal_button
+        self.modify_vis_button = modify_vis_button
+        self.trace_tumor_button = trace_tumor_button
         self.game_is_played_for_saving = False
 
         self.current_level = level
@@ -988,6 +1093,10 @@ class EvaluationGame():
         self.pred_label_volume_node = self.pred_label_node_list[level]
         self.pred_label_volume = self.pred_label_volumes_list[level]
         self.pred_label_volume_temp = self.pred_label_volume.copy()
+        self.gt_label_volume_temp = self.gt_label_volume_temp_list[level]
+
+        slicer.util.updateVolumeFromArray(self.gt_label_volume_node, self.gt_label_volume_temp.copy())
+        self.gt_label_volume = copy.deepcopy(self.gt_label_volume_temp)
 
         self.mri_image_node_spacing = self.mri_image_node.GetSpacing()
         self.mri_image_volume_for_reset = slicer.util.arrayFromVolume(self.mri_image_node).copy()
