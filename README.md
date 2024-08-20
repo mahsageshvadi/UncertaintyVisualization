@@ -45,7 +45,7 @@ Follow these steps to deploy this tool  in your local environment.
 
 ### Prerequisites 
 
-Install [3D Slicer](https://www.slicer.org/) from [slicer.org](https://www.slicer.org/).
+Install 3D Slicer from [slicer.org](https://www.slicer.org/).
 
 ### Deploy
 
