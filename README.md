@@ -8,9 +8,11 @@ With Uncertainty Visualization Tool  you can visualize uncertainty in medical im
 
 
 ### Video Demo
-Watch the demo video to see how the Uncertainty Visualization Tool works:
+Here's a quick look at the Uncertainty Visualization Tool in action:
 
-[Download and watch the video](GameDemo.mov)
+![Demo](game.gif)
+
+
 ## Features
 
 - **Volume Filtering:** Filter volume data to highlight areas of interest.
