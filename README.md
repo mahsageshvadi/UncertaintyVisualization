@@ -10,17 +10,18 @@ One of the significant challenges during brain tumor resection is brain shift—
 
 ## Features
 
-* **Color Overlay:** A customizable color map that encodes uncertainty directly on the MRI images. Surgeons can adjust the color scheme, overlay opacity, and threshold to focus on areas of interest without obscuring important details.
+* **Color Overlay:** Surgeons can adjust color maps to indicate different levels of registration uncertainty. For example, orange may indicate high uncertainty, while green indicates low uncertainty.
 * **Surgeon-Centric Visualization:** Focuses on uncertainty visualization at the tip of the surgical instrument. Modes include:
   * **Audio Warning:** Alerts when entering/exiting high-uncertainty regions.
-  * **Color Overlay Flicker:** Visual feedback when moving into high-uncertainty areas.
-  * **Text Overlay:** Displays uncertainty values directly at the instrument tip.
-  * **Localized Color Map:** Visualizes uncertainty around the instrument tip.
+  * **Flicker mode:** The image flickers when the instrument moves into unsafe regions.
+  * **Text Overlay:** Displays uncertainty values in millimeters  directly at the instrument tip.
+  * **Localized Color Map:** Visualizes uncertainty using a color map only around the surgical instrument's tip.
 * **Tumor-Based Visualization:** Visualizes the uncertainty at the tumor boundary using minimum and maximum offset volumes to indicate the possible extent of the tumor.
+* **Uncertainty-Based Image Filtering: MRI images are blurred, or noise is introduced in regions with high uncertainty, allowing surgeons to visually interpret the reliability of different image areas.
 
 ## Game for Training and Evaluation
 
-Surgery requires careful evaluation of new tools. To support this, UVisExplore includes a game-based approach that serves as both a training tool and a decision-making simulation. This helps surgeons understand uncertainty visualization and see its impact in a safe environment.
+Surgery requires careful evaluation of new tools. To support this, UVisExplore includes a game-based approach that serves as both a training tool and a decision-making simulation.
 
 ### Game Structure
 
@@ -40,9 +41,9 @@ The game has two levels:
 
 ## Installation
 
-Follow these steps to deploy UncertaintyViz X in your local environment.
+Follow these steps to deploy this tool  in your local environment.
 
-### Prerequisites 🧰
+### Prerequisites 
 
 Install [3D Slicer](https://www.slicer.org/) from [slicer.org](https://www.slicer.org/).
 
@@ -67,7 +68,8 @@ cd UncertaintyVisualization
    - Ground truth MRI image.
    - Modified MRI image.
 
+### License
+This project is licensed under the MIT License.
 
-
-###Contact
+### Contact
 For more information or to contribute, please contact Mahsa Geshvadi at mgeshvadi@gmail.com
