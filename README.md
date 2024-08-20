@@ -17,7 +17,7 @@ One of the significant challenges during brain tumor resection is brain shift—
   * **Text Overlay:** Displays uncertainty values in millimeters  directly at the instrument tip.
   * **Localized Color Map:** Visualizes uncertainty using a color map only around the surgical instrument's tip.
 * **Tumor-Based Visualization:** Visualizes the uncertainty at the tumor boundary using minimum and maximum offset volumes to indicate the possible extent of the tumor.
-* **Uncertainty-Based Image Filtering: MRI images are blurred, or noise is introduced in regions with high uncertainty, allowing surgeons to visually interpret the reliability of different image areas.
+* **Uncertainty-Based Image Filtering:**  MRI images are blurred, or noise is introduced in regions with high uncertainty, allowing surgeons to visually interpret the reliability of different image areas.
 
 ## Game for Training and Evaluation
 
